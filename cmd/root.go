@@ -12,7 +12,7 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "git-web-url",
+	Use:   "git-open",
 	Short: "Print the web URL of the Git repository",
 	Long: `This application retrieves the remote URL of the Git repository in the current working directory
 and converts it to a web URL. The web URL is then printed to the console.`,
@@ -34,17 +34,18 @@ and converts it to a web URL. The web URL is then printed to the console.`,
 		// Convert the remote URL to a web URL
 		webURL := convertToWebURL(remoteURL)
 
-		// Print the web URL
-		fmt.Println("Web URL:", webURL)
-
 		// Open the web URL in the browser if the -o flag is provided
-		openBrowser, _ := cmd.Flags().GetBool("open")
-		if openBrowser {
+		plain, _ := cmd.Flags().GetBool("open")
+		if !plain {
 			err = openURLInBrowser(webURL)
 			if err != nil {
 				fmt.Println("Error opening URL in browser:", err)
 			}
+			return
 		}
+
+		// Print the web URL
+		fmt.Println("Web URL:", webURL)
 	},
 }
 
@@ -64,12 +65,12 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.git-web-url.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.git-open.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	rootCmd.Flags().BoolP("open", "o", false, "Open the web URL in the browser")
+	rootCmd.Flags().BoolP("plain", "p", false, "Just print the web url without opening.")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -82,10 +83,10 @@ func initConfig() {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".git-web-url" (without extension).
+		// Search config in home directory with name ".git-open" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigType("yaml")
-		viper.SetConfigName(".git-web-url")
+		viper.SetConfigName(".git-open")
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
