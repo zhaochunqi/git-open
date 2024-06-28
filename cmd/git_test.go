@@ -68,7 +68,7 @@ func Test_convertToWebURL(t *testing.T) {
 		{
 			name: "github_ssh",
 			args: args{
-				url: "git@github.com:zhaochunqi/blog.git",
+				url: "ssh://git@github.com/zhaochunqi/blog.git",
 			},
 			want: "https://github.com/zhaochunqi/blog",
 		},
@@ -82,7 +82,7 @@ func Test_convertToWebURL(t *testing.T) {
 		{
 			name: "gitlab_ssh",
 			args: args{
-				url: "git@gitlab.com:xanthous-tech/proofrock/proofrock-monolith.git",
+				url: "ssh://git@gitlab.com:xanthous-tech/proofrock/proofrock-monolith.git",
 			},
 			want: "https://gitlab.com/xanthous-tech/proofrock/proofrock-monolith",
 		},
