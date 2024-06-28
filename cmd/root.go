@@ -35,7 +35,16 @@ and converts it to a web URL. The web URL is then printed to the console.`,
 		webURL := convertToWebURL(remoteURL)
 
 		// Print the web URL
-		fmt.Println(webURL)
+		fmt.Println("Web URL:", webURL)
+
+		// Open the web URL in the browser if the -o flag is provided
+		openBrowser, _ := cmd.Flags().GetBool("open")
+		if openBrowser {
+			err = openURLInBrowser(webURL)
+			if err != nil {
+				fmt.Println("Error opening URL in browser:", err)
+			}
+		}
 	},
 }
 
@@ -60,6 +69,7 @@ func init() {
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().BoolP("open", "o", false, "Open the web URL in the browser")
 }
 
 // initConfig reads in config file and ENV variables if set.
