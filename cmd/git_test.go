@@ -68,9 +68,9 @@ func Test_convertToWebURL(t *testing.T) {
 		{
 			name: "github_ssh",
 			args: args{
-				url: "ssh://git@github.com/zhaochunqi/blog.git",
+				url: "ssh://git@github.com/zhaochunqi/git-open.git",
 			},
-			want: "https://github.com/zhaochunqi/blog",
+			want: "https://github.com/zhaochunqi/git-open",
 		},
 		{
 			name: "github_https",
@@ -82,9 +82,16 @@ func Test_convertToWebURL(t *testing.T) {
 		{
 			name: "gitlab_ssh",
 			args: args{
-				url: "ssh://git@gitlab.com:xanthous-tech/proofrock/proofrock-monolith.git",
+				url: "git@gitlab.com:gitlab-org/govern/security-policies/alexander-test-group/alexander-test-subgroup/sub-sub-gitlab-org/sub-sub-group-project.git",
 			},
-			want: "https://gitlab.com/xanthous-tech/proofrock/proofrock-monolith",
+			want: "https://gitlab.com/gitlab-org/govern/security-policies/alexander-test-group/alexander-test-subgroup/sub-sub-gitlab-org/sub-sub-group-project",
+		},
+		{
+			name: "gitlab_https",
+			args: args{
+				url: "https://gitlab.com/gitlab-org/govern/security-policies/alexander-test-group/alexander-test-subgroup/sub-sub-gitlab-org/sub-sub-group-project.git",
+			},
+			want: "https://gitlab.com/gitlab-org/govern/security-policies/alexander-test-group/alexander-test-subgroup/sub-sub-gitlab-org/sub-sub-group-project",
 		},
 	}
 	for _, tt := range tests {

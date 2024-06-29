@@ -1,5 +1,7 @@
 # Git Open
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/zhaochunqi/git-open)](https://goreportcard.com/report/github.com/zhaochunqi/git-open)
+
 This is a Go-based tool that allows you to open the current repository in a web browser. It's a simple yet efficient solution for quickly accessing your project's online resources.
 
 ## Features
