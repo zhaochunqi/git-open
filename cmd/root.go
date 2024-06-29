@@ -35,7 +35,7 @@ and converts it to a web URL. The web URL is then printed to the console.`,
 		webURL := convertToWebURL(remoteURL)
 
 		// Open the web URL in the browser if the -o flag is provided
-		plain, _ := cmd.Flags().GetBool("open")
+		plain, _ := cmd.Flags().GetBool("plain")
 		if !plain {
 			err = openURLInBrowser(webURL)
 			if err != nil {
