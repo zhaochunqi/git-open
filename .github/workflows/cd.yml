@@ -20,7 +20,6 @@ jobs:
         uses: jdx/mise-action@v2
       - name: Run tests
         run: |
-          mise use go
           go test ./...
       - name: Run GoReleaser
         if: success()
