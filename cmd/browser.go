@@ -1,7 +1,17 @@
 package cmd
 
-import "github.com/pkg/browser"
+import (
+	"errors"
 
-func openURLInBrowser(url string) error {
-	return browser.OpenURL(url)
+	"github.com/pkg/browser"
+)
+
+// ErrMockBrowser is used for testing browser errors
+var ErrMockBrowser = errors.New("mock browser error")
+
+// OpenURLInBrowser is exported for testing
+var OpenURLInBrowser = browser.OpenURL
+
+func openURLInBrowserFunc(url string) error {
+	return OpenURLInBrowser(url)
 }

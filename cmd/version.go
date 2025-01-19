@@ -7,23 +7,23 @@ import (
 )
 
 var (
-	// Version 是程序的版本号
+	// Version is the program version
 	Version = "dev"
-	// CommitHash 是构建时的 Git commit hash
+	// CommitHash is the Git commit hash at build time
 	CommitHash = "none"
-	// BuildDate 是构建日期
+	// BuildDate is the build date
 	BuildDate = "unknown"
 )
 
-// versionCmd 表示 version 命令
+// versionCmd represents the version command
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "显示程序版本信息",
-	Long:  `显示程序的版本号、构建时的 Git commit hash 和构建日期。`,
+	Short: "Show program version information",
+	Long:  `Show program version, Git commit hash at build time, and build date.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("Version: %s\n", Version)
-		fmt.Printf("Git Commit: %s\n", CommitHash)
-		fmt.Printf("Build Date: %s\n", BuildDate)
+		fmt.Fprintf(cmd.OutOrStdout(), "Version: %s\n", Version)
+		fmt.Fprintf(cmd.OutOrStdout(), "Git Commit: %s\n", CommitHash)
+		fmt.Fprintf(cmd.OutOrStdout(), "Build Date: %s\n", BuildDate)
 	},
 }
 

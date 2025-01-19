@@ -1,21 +1,51 @@
 package cmd
 
 import (
-	"reflect"
+	"os"
 	"testing"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 )
 
 func Test_getCurrentGitDirectory(t *testing.T) {
+	// Create temporary directory
+	tmpDir, err := os.MkdirTemp("", "git-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Initialize test git repository
+	_, err = git.PlainInit(tmpDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Save current working directory
+	currentDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Change to test directory
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(currentDir)
+
 	tests := []struct {
 		name    string
-		want    *git.Repository
+		want    bool
 		wantErr bool
 	}{
-		// TODO: Add test cases.
-
+		{
+			name:    "valid git repo",
+			want:    true,
+			wantErr: false,
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := getCurrentGitDirectory()
@@ -23,28 +53,53 @@ func Test_getCurrentGitDirectory(t *testing.T) {
 				t.Errorf("getCurrentGitDirectory() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getCurrentGitDirectory() = %v, want %v", got, tt.want)
+			if tt.want && got == nil {
+				t.Error("getCurrentGitDirectory() = nil, want valid repository")
 			}
 		})
 	}
 }
 
 func Test_getRemoteURL(t *testing.T) {
-	type args struct {
-		repo *git.Repository
+	// Create temporary directory
+	tmpDir, err := os.MkdirTemp("", "git-test")
+	if err != nil {
+		t.Fatal(err)
 	}
+	defer os.RemoveAll(tmpDir)
+
+	// Initialize test git repository
+	repo, err := git.PlainInit(tmpDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add remote repository
+	_, err = repo.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{"https://github.com/zhaochunqi/git-open.git"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tests := []struct {
 		name    string
-		args    args
+		repo    *git.Repository
 		want    string
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:    "valid remote",
+			repo:    repo,
+			want:    "https://github.com/zhaochunqi/git-open.git",
+			wantErr: false,
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getRemoteURL(tt.args.repo)
+			got, err := getRemoteURL(tt.repo)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("getRemoteURL() error = %v, wantErr %v", err, tt.wantErr)
 				return

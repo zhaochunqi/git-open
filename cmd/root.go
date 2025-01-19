@@ -16,19 +16,17 @@ var rootCmd = &cobra.Command{
 	Short: "Print the web URL of the Git repository",
 	Long: `This application retrieves the remote URL of the Git repository in the current working directory
 and converts it to a web URL. The web URL is then printed to the console.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Get the Git repository in the current working directory
 		repo, err := getCurrentGitDirectory()
 		if err != nil {
-			fmt.Println("Error:", err)
-			return
+			return fmt.Errorf("error getting git directory: %w", err)
 		}
 
 		// Get the remote URL of the Git repository
 		remoteURL, err := getRemoteURL(repo)
 		if err != nil {
-			fmt.Println("Error:", err)
-			return
+			return fmt.Errorf("error getting remote URL: %w", err)
 		}
 
 		// Convert the remote URL to a web URL
@@ -36,16 +34,16 @@ and converts it to a web URL. The web URL is then printed to the console.`,
 
 		// Open the web URL in the browser if the -o flag is provided
 		plain, _ := cmd.Flags().GetBool("plain")
-		if !plain {
-			err = openURLInBrowser(webURL)
-			if err != nil {
-				fmt.Println("Error opening URL in browser:", err)
-			}
-			return
+		if plain {
+			fmt.Fprintf(cmd.OutOrStdout(), "Web URL: %s\n", webURL)
+			return nil
 		}
 
-		// Print the web URL
-		fmt.Println("Web URL:", webURL)
+		err = openURLInBrowserFunc(webURL)
+		if err != nil {
+			fmt.Fprintf(cmd.OutOrStderr(), "Error opening URL in browser: %v\n", err)
+		}
+		return nil
 	},
 }
 
