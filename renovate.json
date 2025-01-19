@@ -2,17 +2,5 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
-  ],
-  "golang": {
-    "enabled": true,
-    "postUpdateOptions": ["gomodTidy"]
-  },
-  "regexManagers": [
-    {
-      "fileMatch": ["^mise\\.toml$"],
-      "matchStrings": ["go = \"(?<currentValue>.*?)\""],
-      "depNameTemplate": "go",
-      "datasourceTemplate": "golang-version"
-    }
   ]
 }

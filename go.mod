@@ -1,6 +1,6 @@
 module github.com/zhaochunqi/git-open
 
-go 1.21.4
+go 1.23.5
 
 require (
 	github.com/spf13/cobra v1.8.1
