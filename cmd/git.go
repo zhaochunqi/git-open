@@ -33,6 +33,11 @@ func getRemoteURL(repo *git.Repository) (string, error) {
 }
 
 func convertToWebURL(url string) string {
+	// Validate URL format
+	if !strings.Contains(url, "://") && !strings.Contains(url, "@") {
+		return ""
+	}
+
 	// If the URL starts with "https://" or "http://", remove the ".git" suffix
 	if strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://") {
 		url = strings.TrimSuffix(url, ".git")
@@ -43,7 +48,6 @@ func convertToWebURL(url string) string {
 		url = strings.Replace(url, ":", "/", 1)
 		// Replace "git@" or "ssh://git@" with "https://"
 		url = strings.Replace(url, "git@", "https://", 1)
-		// Replace the first colon with a slash
 		// Remove the ".git" suffix
 		url = strings.TrimSuffix(url, ".git")
 	}

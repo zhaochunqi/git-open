@@ -1,31 +1,76 @@
 package main
 
 import (
-	"testing"
+	"bytes"
 	"os"
+	"testing"
 
 	"github.com/zhaochunqi/git-open/cmd"
 )
 
 func Test_main(t *testing.T) {
-	// Save original function
-	original := cmd.OpenURLInBrowser
-	defer func() {
-		cmd.OpenURLInBrowser = original
-	}()
-
-	// Mock the browser function
-	cmd.OpenURLInBrowser = func(url string) error {
-		return nil
-	}
-
-	// Set the plain flag to avoid opening browser
+	// Save original args and restore after test
 	oldArgs := os.Args
 	defer func() {
 		os.Args = oldArgs
 	}()
-	os.Args = []string{"git-open", "--plain"}
 
-	// Run main
-	main()
+	// Save original OpenURLInBrowser function and restore after test
+	originalOpenURL := cmd.OpenURLInBrowser
+	defer func() {
+		cmd.OpenURLInBrowser = originalOpenURL
+	}()
+
+	// Mock OpenURLInBrowser function
+	openedURL := ""
+	cmd.OpenURLInBrowser = func(url string) error {
+		openedURL = url
+		return nil
+	}
+
+	tests := []struct {
+		name      string
+		args      []string
+		wantURL   string
+		wantError bool
+	}{
+		{
+			name:      "default behavior",
+			args:      []string{"git-open"},
+			wantURL:   "https://github.com/zhaochunqi/git-open",
+			wantError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Args = tt.args
+			openedURL = ""
+
+			// Capture stdout and stderr
+			oldStdout := os.Stdout
+			oldStderr := os.Stderr
+			r, w, _ := os.Pipe()
+			os.Stdout = w
+			os.Stderr = w
+
+			main()
+
+			w.Close()
+			os.Stdout = oldStdout
+			os.Stderr = oldStderr
+
+			var buf bytes.Buffer
+			buf.ReadFrom(r)
+			output := buf.String()
+
+			if tt.wantError && output == "" {
+				t.Errorf("Expected error output, but got none")
+			}
+
+			if openedURL != tt.wantURL {
+				t.Errorf("OpenURLInBrowser called with %v, want %v", openedURL, tt.wantURL)
+			}
+		})
+	}
 }
