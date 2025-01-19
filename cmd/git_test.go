@@ -4,12 +4,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/zhaochunqi/git-open/internal/testutil"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 )
 
 func Test_getCurrentGitDirectory(t *testing.T) {
-	// Use testutil for setup
-	_, cleanup := testutil.SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git")
+	// Use setupTestRepo for setup
+	_, cleanup := setupTestRepo(t, "https://github.com/zhaochunqi/git-open.git")
 	defer cleanup()
 
 	tests := []struct {
@@ -59,6 +60,7 @@ func Test_getRemoteURL(t *testing.T) {
 	tests := []struct {
 		name     string
 		remoteURL string
+		setup    func(t *testing.T, repo *git.Repository)
 		want     string
 		wantErr  bool
 	}{
@@ -86,16 +88,38 @@ func Test_getRemoteURL(t *testing.T) {
 			want:     "",
 			wantErr:  true,
 		},
+		{
+			name:     "empty remote urls",
+			remoteURL: "https://github.com/zhaochunqi/git-open.git",
+			setup: func(t *testing.T, repo *git.Repository) {
+				// Remove all remotes
+				cfg, err := repo.Config()
+				if err != nil {
+					t.Fatal(err)
+				}
+				cfg.Remotes = make(map[string]*config.RemoteConfig)
+				err = repo.SetConfig(cfg)
+				if err != nil {
+					t.Fatal(err)
+				}
+			},
+			want:    "",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, cleanup := testutil.SetupTestRepo(t, tt.remoteURL)
+			_, cleanup := setupTestRepo(t, tt.remoteURL)
 			defer cleanup()
 
 			repo, err := getCurrentGitDirectory()
 			if err != nil {
 				t.Fatal(err)
+			}
+
+			if tt.setup != nil {
+				tt.setup(t, repo)
 			}
 
 			got, err := getRemoteURL(repo)

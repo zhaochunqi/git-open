@@ -1,4 +1,4 @@
-package testutil
+package cmd
 
 import (
 	"os"
@@ -8,9 +8,9 @@ import (
 	"github.com/go-git/go-git/v5/config"
 )
 
-// SetupTestRepo creates a temporary git repository for testing.
+// setupTestRepo creates a temporary git repository for testing.
 // It returns the temporary directory path and a cleanup function.
-func SetupTestRepo(t *testing.T, remoteURL string) (string, func()) {
+func setupTestRepo(t *testing.T, remoteURL string) (string, func()) {
 	t.Helper()
 	
 	// Create temporary directory
@@ -54,20 +54,4 @@ func SetupTestRepo(t *testing.T, remoteURL string) (string, func()) {
 	}
 
 	return tmpDir, cleanup
-}
-
-// MockBrowserOpen creates a mock function for browser opening and returns cleanup function
-func MockBrowserOpen(t *testing.T) (func(string) error, func()) {
-	t.Helper()
-	var openedURL string
-	mock := func(url string) error {
-		openedURL = url
-		return nil
-	}
-	
-	return mock, func() {
-		if openedURL == "" {
-			t.Error("Browser open function was never called")
-		}
-	}
 }

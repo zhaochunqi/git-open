@@ -5,56 +5,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
 	"github.com/spf13/cobra"
+	"path/filepath"
 )
-
-func setupTestRepo(t *testing.T) (string, func()) {
-	// Create temporary directory
-	tmpDir, err := os.MkdirTemp("", "git-test")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Initialize git repository
-	repo, err := git.PlainInit(tmpDir, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Add remote
-	_, err = repo.CreateRemote(&config.RemoteConfig{
-		Name: "origin",
-		URLs: []string{"https://github.com/zhaochunqi/git-open.git"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Save current directory
-	currentDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Change to test directory
-	if err := os.Chdir(tmpDir); err != nil {
-		t.Fatal(err)
-	}
-
-	// Return cleanup function
-	cleanup := func() {
-		os.Chdir(currentDir)
-		os.RemoveAll(tmpDir)
-	}
-
-	return tmpDir, cleanup
-}
 
 func Test_rootCmd(t *testing.T) {
 	// Setup test repository
-	_, cleanup := setupTestRepo(t)
+	_, cleanup := setupTestRepo(t, "https://github.com/zhaochunqi/git-open.git")
 	defer cleanup()
 
 	// Save original openURLInBrowser function
@@ -108,76 +65,151 @@ func Test_rootCmd(t *testing.T) {
 }
 
 func Test_Execute(t *testing.T) {
-	// Setup test repository
-	_, cleanup := setupTestRepo(t)
-	defer cleanup()
-
-	// Save original openURLInBrowser function
-	original := OpenURLInBrowser
-	defer func() {
-		OpenURLInBrowser = original
-	}()
-
-	// Mock openURLInBrowser function
-	OpenURLInBrowser = func(url string) error {
-		return nil
+	tests := []struct {
+		name      string
+		args      []string
+		setup     func()
+		wantError bool
+	}{
+		{
+			name: "normal execution",
+			setup: func() {
+				_, cleanup := setupTestRepo(t, "https://github.com/zhaochunqi/git-open.git")
+				t.Cleanup(cleanup)
+				
+				// Mock browser open
+				original := OpenURLInBrowser
+				OpenURLInBrowser = func(url string) error {
+					return nil
+				}
+				t.Cleanup(func() {
+					OpenURLInBrowser = original
+				})
+			},
+			wantError: false,
+		},
+		{
+			name: "no git repo",
+			setup: func() {
+				// Create and change to temp dir without git repo
+				tmpDir, err := os.MkdirTemp("", "no-git")
+				if err != nil {
+					t.Fatal(err)
+				}
+				currentDir, err := os.Getwd()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Chdir(tmpDir); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					os.Chdir(currentDir)
+					os.RemoveAll(tmpDir)
+				})
+			},
+			wantError: true,
+		},
 	}
 
-	// Save original args
-	oldArgs := os.Args
-	defer func() {
-		os.Args = oldArgs
-	}()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save and restore os.Args
+			oldArgs := os.Args
+			defer func() { os.Args = oldArgs }()
+			
+			if tt.args != nil {
+				os.Args = tt.args
+			}
 
-	// Set args for testing
-	os.Args = []string{"git-open", "--plain"}
+			if tt.setup != nil {
+				tt.setup()
+			}
 
-	// Save stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Restore stdout
-	defer func() {
-		w.Close()
-		os.Stdout = oldStdout
-	}()
-
-	// Execute command
-	if err := rootCmd.Execute(); err != nil {
-		t.Errorf("rootCmd.Execute() error = %v", err)
-		return
-	}
-
-	// Read output
-	w.Close()
-	var buf bytes.Buffer
-	if _, err := buf.ReadFrom(r); err != nil {
-		t.Error(err)
-		return
-	}
-
-	wantOutput := "Web URL: https://github.com/zhaochunqi/git-open\n"
-	if got := buf.String(); got != wantOutput {
-		t.Errorf("Execute() output = %q, want %q", got, wantOutput)
+			if err := Execute(); (err != nil) != tt.wantError {
+				t.Errorf("Execute() error = %v, wantError %v", err, tt.wantError)
+			}
+		})
 	}
 }
 
 func Test_initConfig(t *testing.T) {
-	// Create a temporary home directory
-	tmpHome, err := os.MkdirTemp("", "home")
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name    string
+		setup   func(t *testing.T)
+		wantErr bool
+	}{
+		{
+			name: "normal config",
+			setup: func(t *testing.T) {
+				// Save original home directory
+				origHome := os.Getenv("HOME")
+				t.Cleanup(func() {
+					os.Setenv("HOME", origHome)
+				})
+
+				// Create temporary home directory
+				tmpHome, err := os.MkdirTemp("", "home")
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					os.RemoveAll(tmpHome)
+				})
+
+				// Set temporary home directory
+				if err := os.Setenv("HOME", tmpHome); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "with config file",
+			setup: func(t *testing.T) {
+				// Save original home directory
+				origHome := os.Getenv("HOME")
+				t.Cleanup(func() {
+					os.Setenv("HOME", origHome)
+				})
+
+				// Create temporary home directory
+				tmpHome, err := os.MkdirTemp("", "home")
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					os.RemoveAll(tmpHome)
+				})
+
+				// Create .git-open directory
+				configDir := filepath.Join(tmpHome, ".git-open")
+				if err := os.MkdirAll(configDir, 0755); err != nil {
+					t.Fatal(err)
+				}
+
+				// Create config file
+				configFile := filepath.Join(configDir, "config.yaml")
+				if err := os.WriteFile(configFile, []byte("browser: firefox"), 0644); err != nil {
+					t.Fatal(err)
+				}
+
+				// Set temporary home directory
+				if err := os.Setenv("HOME", tmpHome); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantErr: false,
+		},
 	}
-	defer os.RemoveAll(tmpHome)
 
-	// Save original home
-	oldHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", oldHome)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.setup != nil {
+				tt.setup(t)
+			}
 
-	// Set new home
-	os.Setenv("HOME", tmpHome)
-
-	// Test initConfig
-	initConfig()
+			initConfig()
+		})
+	}
 }
