@@ -21,6 +21,11 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X github.com/zhaochunqi/git-open/cmd.Version={{.Version}}
+      - -X github.com/zhaochunqi/git-open/cmd.CommitHash={{.Commit}}
+      - -X github.com/zhaochunqi/git-open/cmd.BuildDate={{.Date}}
     goos:
       - linux
       - windows
