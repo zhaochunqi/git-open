@@ -11,9 +11,26 @@ This is a Go-based tool that allows you to open the current repository in a web 
 * Lightweight: Minimal dependencies and efficient code ensure the tool runs smoothly.
 
 ## Installation
-To install the tool, you'll need to have Go installed on your system. Once Go is installed, you can install the tool using the following command:
 
-`go get -u github.com/zhaochunqi/git-open`
+There are multiple ways to install the tool:
+
+### Using Go
+
+Ensure you have Go installed on your system. Then, use the following command:
+
+```sh
+go install github.com/zhaochunqi/git-open@latest
+```
+
+### Using mise with ubi
+
+If you prefer using mise, you can install the tool with:
+
+```sh
+mise use -g ubi:zhaochunqi/git-open
+```
+
+This method allows for easy version management and isolation.
 
 ## Usage
 
