@@ -8,8 +8,10 @@ import (
 )
 
 func getCurrentGitDirectory() (*git.Repository, error) {
-	// Open the Git repository in the current working directory
-	repo, err := git.PlainOpen(".")
+	// Open the Git repository in the current working directory or any parent directory
+	repo, err := git.PlainOpenWithOptions(".", &git.PlainOpenOptions{
+		DetectDotGit: true,
+	})
 	if err != nil {
 		return nil, err
 	}
