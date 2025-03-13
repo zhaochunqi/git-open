@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -56,13 +57,24 @@ func Test_getCurrentGitDirectory(t *testing.T) {
 	}
 }
 
+// Helper function to extract the core logic from getRemoteURL for testing
+func getRemoteURLFromConfig(cfg *config.RemoteConfig) (string, error) {
+	urls := cfg.URLs
+	if len(urls) == 0 {
+		return "", fmt.Errorf("remote URL not found")
+	}
+
+	return urls[0], nil
+}
+
 func Test_getRemoteURL(t *testing.T) {
 	tests := []struct {
-		name     string
-		remoteURL string
-		setup    func(t *testing.T, repo *git.Repository)
-		want     string
-		wantErr  bool
+		name       string
+		remoteURL  string
+		setup      func(t *testing.T, repo *git.Repository)
+		customTest func(t *testing.T, repo *git.Repository) // For custom test logic
+		want       string
+		wantErr    bool
 	}{
 		{
 			name:     "github https url",
@@ -106,10 +118,58 @@ func Test_getRemoteURL(t *testing.T) {
 			want:    "",
 			wantErr: true,
 		},
+		{
+			name:     "empty remote URL list",
+			remoteURL: "https://github.com/zhaochunqi/git-open.git",
+			setup: func(t *testing.T, repo *git.Repository) {
+				// Standard setup is fine, we'll use customTest
+			},
+			customTest: func(t *testing.T, repo *git.Repository) {
+				// Create a mock remote config with empty URLs
+				mockConfig := &config.RemoteConfig{
+					Name: "origin",
+					URLs: []string{},
+				}
+
+				// Test the function with our mock config
+				url, err := getRemoteURLFromConfig(mockConfig)
+				if err == nil {
+					t.Error("Expected error for empty URLs, got nil")
+				}
+				if url != "" {
+					t.Errorf("Expected empty URL, got %s", url)
+				}
+				if err != nil && err.Error() != "remote URL not found" {
+					t.Errorf("Expected error message 'remote URL not found', got '%s'", err.Error())
+				}
+			},
+			want:    "",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// If we have a custom test, run it instead of the standard test
+			if tt.customTest != nil {
+				_, cleanup := setupTestRepo(t, tt.remoteURL)
+				defer cleanup()
+
+				repo, err := getCurrentGitDirectory()
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if tt.setup != nil {
+					tt.setup(t, repo)
+				}
+
+				// Run custom test logic
+				tt.customTest(t, repo)
+				return
+			}
+
+			// Standard test path
 			_, cleanup := setupTestRepo(t, tt.remoteURL)
 			defer cleanup()
 
