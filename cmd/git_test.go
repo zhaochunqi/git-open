@@ -11,7 +11,7 @@ import (
 
 func Test_getCurrentGitDirectory(t *testing.T) {
 	// Use setupTestRepo for setup
-	_, cleanup := setupTestRepo(t, "https://github.com/zhaochunqi/git-open.git")
+	_, cleanup := setupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
 	defer cleanup()
 
 	tests := []struct {
@@ -152,7 +152,7 @@ func Test_getRemoteURL(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// If we have a custom test, run it instead of the standard test
 			if tt.customTest != nil {
-				_, cleanup := setupTestRepo(t, tt.remoteURL)
+				_, cleanup := setupTestRepo(t, tt.remoteURL, "main")
 				defer cleanup()
 
 				repo, err := getCurrentGitDirectory()
@@ -170,7 +170,7 @@ func Test_getRemoteURL(t *testing.T) {
 			}
 
 			// Standard test path
-			_, cleanup := setupTestRepo(t, tt.remoteURL)
+			_, cleanup := setupTestRepo(t, tt.remoteURL, "main")
 			defer cleanup()
 
 			repo, err := getCurrentGitDirectory()
