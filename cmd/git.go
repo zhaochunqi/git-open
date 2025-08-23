@@ -18,7 +18,8 @@ const (
 	// Add other services as needed
 )
 
-func getCurrentGitDirectory() (*git.Repository, error) {
+// getCurrentGitDirectoryFunc is a variable that can be replaced for testing
+var getCurrentGitDirectoryFunc = func() (*git.Repository, error) {
 	// Open the Git repository in the current working directory or any parent directory
 	repo, err := git.PlainOpenWithOptions(".", &git.PlainOpenOptions{
 		DetectDotGit: true,
@@ -30,7 +31,12 @@ func getCurrentGitDirectory() (*git.Repository, error) {
 	return repo, nil
 }
 
-func getRemoteURL(repo *git.Repository) (string, error) {
+func getCurrentGitDirectory() (*git.Repository, error) {
+	return getCurrentGitDirectoryFunc()
+}
+
+// getRemoteURLFunc is a variable that can be replaced for testing
+var getRemoteURLFunc = func(repo *git.Repository) (string, error) {
 	// Get the remote URL of the Git repository
 	remote, err := repo.Remote("origin")
 	if err != nil {
@@ -43,6 +49,10 @@ func getRemoteURL(repo *git.Repository) (string, error) {
 	}
 
 	return urls[0], nil
+}
+
+func getRemoteURL(repo *git.Repository) (string, error) {
+	return getRemoteURLFunc(repo)
 }
 
 func convertToWebURL(url string) string {
@@ -67,12 +77,17 @@ func convertToWebURL(url string) string {
 	return url
 }
 
-func getBranchName(repo *git.Repository) (string, error) {
+// getBranchNameFunc is a variable that can be replaced for testing
+var getBranchNameFunc = func(repo *git.Repository) (string, error) {
 	head, err := repo.Head()
 	if err != nil {
 		return "", fmt.Errorf("error getting HEAD: %w", err)
 	}
 	return head.Name().Short(), nil
+}
+
+func getBranchName(repo *git.Repository) (string, error) {
+	return getBranchNameFunc(repo)
 }
 
 // getHostingService determines the Git hosting service from the remote URL.
