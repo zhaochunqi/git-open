@@ -14,7 +14,7 @@ import (
 
 // setupTestRepo creates a temporary git repository for testing.
 // It returns the temporary directory path and a cleanup function.
-func setupTestRepo(t *testing.T, remoteURL string, branchName string) (string, func()) {
+func SetupTestRepo(t *testing.T, remoteURL string, branchName string) (string, func()) {
 	t.Helper()
 	
 	// Create temporary directory
