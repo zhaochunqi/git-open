@@ -11,10 +11,10 @@ import (
 
 func Test_rootCmd(t *testing.T) {
 	// Setup test repository
-	_, cleanup := setupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
+	_, cleanup := SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
 	defer cleanup()
 
-	// Save original openURLInBrowser function
+	// Save original openURLInBrowser function and restore after test
 	original := OpenURLInBrowser
 	defer func() {
 		OpenURLInBrowser = original
@@ -56,7 +56,7 @@ func Test_rootCmd(t *testing.T) {
 				t.Errorf("rootCmd.RunE() error = %v", err)
 				return
 			}
-			
+
 			if got := buf.String(); got != tt.wantOutput {
 				t.Errorf("root command output = %q, want %q", got, tt.wantOutput)
 			}
@@ -118,16 +118,16 @@ func Test_Execute(t *testing.T) {
 			// Setup logic moved directly into the test case
 			switch tt.name {
 			case "normal execution - github main branch":
-				_, cleanup := setupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
+				_, cleanup := SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
 				t.Cleanup(cleanup)
 			case "normal execution - github feature branch":
-				_, cleanup := setupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "feature-branch")
+				_, cleanup := SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "feature-branch")
 				t.Cleanup(cleanup)
 			case "normal execution - gitlab feature branch":
-				_, cleanup := setupTestRepo(t, "https://gitlab.com/zhaochunqi/git-open.git", "feature-branch")
+				_, cleanup := SetupTestRepo(t, "https://gitlab.com/zhaochunqi/git-open.git", "feature-branch")
 				t.Cleanup(cleanup)
 			case "normal execution - bitbucket feature branch":
-				_, cleanup := setupTestRepo(t, "https://bitbucket.org/zhaochunqi/git-open.git", "feature-branch")
+				_, cleanup := SetupTestRepo(t, "https://bitbucket.org/zhaochunqi/git-open.git", "feature-branch")
 				t.Cleanup(cleanup)
 			case "no git repo":
 				// Create and change to temp dir without git repo

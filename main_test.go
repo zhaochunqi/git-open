@@ -37,13 +37,17 @@ func Test_main(t *testing.T) {
 		{
 			name:      "default behavior",
 			args:      []string{"git-open"},
-			wantURL:   "https://github.com/zhaochunqi/git-open",
+			wantURL:   "https://github.com/zhaochunqi/git-open/tree/feat/open-branch",
 			wantError: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Setup test repository for this test case
+			_, cleanup := cmd.SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "feat/open-branch")
+			t.Cleanup(cleanup)
+
 			os.Args = tt.args
 			openedURL = ""
 
