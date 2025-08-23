@@ -2,16 +2,19 @@ package cmd
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"testing"
 
+	"github.com/go-git/go-git/v5"
 	"github.com/spf13/cobra"
 	"path/filepath"
+	"github.com/zhaochunqi/git-open/internal/testhelper"
 )
 
 func Test_rootCmd(t *testing.T) {
 	// Setup test repository
-	_, cleanup := SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
+	_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
 	defer cleanup()
 
 	// Save original openURLInBrowser function and restore after test
@@ -118,16 +121,16 @@ func Test_Execute(t *testing.T) {
 			// Setup logic moved directly into the test case
 			switch tt.name {
 			case "normal execution - github main branch":
-				_, cleanup := SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
+				_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
 				t.Cleanup(cleanup)
 			case "normal execution - github feature branch":
-				_, cleanup := SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "feature-branch")
+				_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "feature-branch")
 				t.Cleanup(cleanup)
 			case "normal execution - gitlab feature branch":
-				_, cleanup := SetupTestRepo(t, "https://gitlab.com/zhaochunqi/git-open.git", "feature-branch")
+				_, cleanup := testhelper.SetupTestRepo(t, "https://gitlab.com/zhaochunqi/git-open.git", "feature-branch")
 				t.Cleanup(cleanup)
 			case "normal execution - bitbucket feature branch":
-				_, cleanup := SetupTestRepo(t, "https://bitbucket.org/zhaochunqi/git-open.git", "feature-branch")
+				_, cleanup := testhelper.SetupTestRepo(t, "https://bitbucket.org/zhaochunqi/git-open.git", "feature-branch")
 				t.Cleanup(cleanup)
 			case "no git repo":
 				// Create and change to temp dir without git repo
@@ -232,6 +235,161 @@ func Test_initConfig(t *testing.T) {
 			}
 			}
 
+			initConfig()
+		})
+	}
+}
+func Test_rootCmd_ErrorHandling(t *testing.T) {
+	// Save original functions
+	originalGetCurrentGitDirectoryFunc := getCurrentGitDirectoryFunc
+	originalGetRemoteURLFunc := getRemoteURLFunc
+	originalGetBranchNameFunc := getBranchNameFunc
+	originalOpenURLInBrowser := OpenURLInBrowser
+	
+	defer func() {
+		getCurrentGitDirectoryFunc = originalGetCurrentGitDirectoryFunc
+		getRemoteURLFunc = originalGetRemoteURLFunc
+		getBranchNameFunc = originalGetBranchNameFunc
+		OpenURLInBrowser = originalOpenURLInBrowser
+	}()
+
+	tests := []struct {
+		name    string
+		setup   func()
+		wantErr bool
+	}{
+		{
+			name: "error getting git directory",
+			setup: func() {
+				getCurrentGitDirectoryFunc = func() (*git.Repository, error) {
+					return nil, errors.New("git directory error")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name: "error getting remote URL",
+			setup: func() {
+				_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/test/repo.git", "main")
+				t.Cleanup(cleanup)
+				
+				getRemoteURLFunc = func(repo *git.Repository) (string, error) {
+					return "", errors.New("remote URL error")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name: "error getting branch name",
+			setup: func() {
+				_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/test/repo.git", "main")
+				t.Cleanup(cleanup)
+				
+				getBranchNameFunc = func(repo *git.Repository) (string, error) {
+					return "", errors.New("branch name error")
+				}
+			},
+			wantErr: true,
+		},
+		{
+			name: "browser error",
+			setup: func() {
+				_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/test/repo.git", "main")
+				t.Cleanup(cleanup)
+				
+				OpenURLInBrowser = func(url string) error {
+					return errors.New("browser error")
+				}
+			},
+			wantErr: false, // Browser error doesn't cause command to fail, it just prints error
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Reset functions to original before each test
+			getCurrentGitDirectoryFunc = originalGetCurrentGitDirectoryFunc
+			getRemoteURLFunc = originalGetRemoteURLFunc
+			getBranchNameFunc = originalGetBranchNameFunc
+			OpenURLInBrowser = originalOpenURLInBrowser
+			
+			tt.setup()
+			
+			// Create a buffer to capture stderr
+			buf := new(bytes.Buffer)
+			cmd := &cobra.Command{}
+			cmd.SetErr(buf)
+			
+			// Run the root command function
+			runE := rootCmd.RunE
+			err := runE(cmd, []string{})
+			
+			if (err != nil) != tt.wantErr {
+				t.Errorf("rootCmd.RunE() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_initConfig_ErrorCases(t *testing.T) {
+	// Save original cfgFile
+	originalCfgFile := cfgFile
+	defer func() {
+		cfgFile = originalCfgFile
+	}()
+
+	tests := []struct {
+		name  string
+		setup func()
+	}{
+		{
+			name: "with specific config file",
+			setup: func() {
+				// Create a temporary config file
+				tmpFile, err := os.CreateTemp("", "test-config-*.yaml")
+				if err != nil {
+					t.Fatal(err)
+				}
+				tmpFile.WriteString("test: value\n")
+				tmpFile.Close()
+				t.Cleanup(func() {
+					os.Remove(tmpFile.Name())
+				})
+				
+				cfgFile = tmpFile.Name()
+			},
+		},
+		{
+			name: "config file read error",
+			setup: func() {
+				// Save original home directory
+				origHome := os.Getenv("HOME")
+				t.Cleanup(func() {
+					os.Setenv("HOME", origHome)
+				})
+
+				// Create temporary home directory
+				tmpHome, err := os.MkdirTemp("", "home")
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					os.RemoveAll(tmpHome)
+				})
+
+				// Set temporary home directory
+				if err := os.Setenv("HOME", tmpHome); err != nil {
+					t.Fatal(err)
+				}
+				
+				cfgFile = ""
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setup()
 			initConfig()
 		})
 	}

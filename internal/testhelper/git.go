@@ -1,4 +1,4 @@
-package cmd
+package testhelper
 
 import (
 	"os"
@@ -12,7 +12,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-// setupTestRepo creates a temporary git repository for testing.
+// SetupTestRepo creates a temporary git repository for testing.
 // It returns the temporary directory path and a cleanup function.
 func SetupTestRepo(t *testing.T, remoteURL string, branchName string) (string, func()) {
 	t.Helper()
@@ -84,7 +84,6 @@ func SetupTestRepo(t *testing.T, remoteURL string, branchName string) (string, f
 			t.Fatal(err)
 		}
 	}
-
 
 	// Save current directory
 	currentDir, err := os.Getwd()

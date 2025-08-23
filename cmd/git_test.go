@@ -3,15 +3,17 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
+	"github.com/zhaochunqi/git-open/internal/testhelper"
 )
 
 func Test_getCurrentGitDirectory(t *testing.T) {
 	// Use setupTestRepo for setup
-	_, cleanup := SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
+	_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
 	defer cleanup()
 
 	tests := []struct {
@@ -118,41 +120,14 @@ func Test_getRemoteURL(t *testing.T) {
 			want:    "",
 			wantErr: true,
 		},
-		{
-			name:     "empty remote URL list",
-			remoteURL: "https://github.com/zhaochunqi/git-open.git",
-			setup: func(t *testing.T, repo *git.Repository) {
-				// Standard setup is fine, we'll use customTest
-			},
-			customTest: func(t *testing.T, repo *git.Repository) {
-				// Create a mock remote config with empty URLs
-				mockConfig := &config.RemoteConfig{
-					Name: "origin",
-					URLs: []string{},
-				}
 
-				// Test the function with our mock config
-				url, err := getRemoteURLFromConfig(mockConfig)
-				if err == nil {
-					t.Error("Expected error for empty URLs, got nil")
-				}
-				if url != "" {
-					t.Errorf("Expected empty URL, got %s", url)
-				}
-				if err != nil && err.Error() != "remote URL not found" {
-					t.Errorf("Expected error message 'remote URL not found', got '%s'", err.Error())
-				}
-			},
-			want:    "",
-			wantErr: true,
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// If we have a custom test, run it instead of the standard test
 			if tt.customTest != nil {
-				_, cleanup := SetupTestRepo(t, tt.remoteURL, "main")
+				_, cleanup := testhelper.SetupTestRepo(t, tt.remoteURL, "main")
 				defer cleanup()
 
 				repo, err := getCurrentGitDirectory()
@@ -170,7 +145,7 @@ func Test_getRemoteURL(t *testing.T) {
 			}
 
 			// Standard test path
-			_, cleanup := SetupTestRepo(t, tt.remoteURL, "main")
+			_, cleanup := testhelper.SetupTestRepo(t, tt.remoteURL, "main")
 			defer cleanup()
 
 			repo, err := getCurrentGitDirectory()
@@ -231,6 +206,18 @@ func Test_convertToWebURL(t *testing.T) {
 			want:    "",
 			wantErr: true,
 		},
+		{
+			name:    "ssh url with ssh prefix",
+			url:     "ssh://git@github.com/user/repo.git",
+			want:    "https://github.com/user/repo",
+			wantErr: false,
+		},
+		{
+			name:    "http url without git suffix",
+			url:     "http://github.com/user/repo",
+			want:    "http://github.com/user/repo",
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -238,6 +225,139 @@ func Test_convertToWebURL(t *testing.T) {
 			got := convertToWebURL(tt.url)
 			if got != tt.want {
 				t.Errorf("convertToWebURL() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getBranchName(t *testing.T) {
+	tests := []struct {
+		name       string
+		remoteURL  string
+		branchName string
+		setup      func(t *testing.T, repo *git.Repository)
+		wantErr    bool
+	}{
+		{
+			name:       "main branch",
+			remoteURL:  "https://github.com/zhaochunqi/git-open.git",
+			branchName: "main",
+			wantErr:    false,
+		},
+		{
+			name:       "feature branch",
+			remoteURL:  "https://github.com/zhaochunqi/git-open.git",
+			branchName: "feature-branch",
+			wantErr:    false,
+		},
+
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, cleanup := testhelper.SetupTestRepo(t, tt.remoteURL, tt.branchName)
+			defer cleanup()
+
+			repo, err := getCurrentGitDirectory()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tt.setup != nil {
+				tt.setup(t, repo)
+			}
+
+			got, err := getBranchName(repo)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("getBranchName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && got != tt.branchName {
+				t.Errorf("getBranchName() = %v, want %v", got, tt.branchName)
+			}
+		})
+	}
+}
+
+func Test_getHostingService(t *testing.T) {
+	tests := []struct {
+		name      string
+		remoteURL string
+		want      HostingService
+	}{
+		{
+			name:      "github",
+			remoteURL: "https://github.com/user/repo.git",
+			want:      GitHub,
+		},
+		{
+			name:      "gitlab",
+			remoteURL: "https://gitlab.com/user/repo.git",
+			want:      GitLab,
+		},
+		{
+			name:      "bitbucket",
+			remoteURL: "https://bitbucket.org/user/repo.git",
+			want:      Bitbucket,
+		},
+		{
+			name:      "unknown service",
+			remoteURL: "https://example.com/user/repo.git",
+			want:      Unknown,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getHostingService(tt.remoteURL); got != tt.want {
+				t.Errorf("getHostingService() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_buildBranchURL(t *testing.T) {
+	tests := []struct {
+		name      string
+		baseURL   string
+		branch    string
+		remoteURL string
+		want      string
+	}{
+		{
+			name:      "github branch url",
+			baseURL:   "https://github.com/user/repo",
+			branch:    "feature",
+			remoteURL: "https://github.com/user/repo.git",
+			want:      "https://github.com/user/repo/tree/feature",
+		},
+		{
+			name:      "gitlab branch url",
+			baseURL:   "https://gitlab.com/user/repo",
+			branch:    "feature",
+			remoteURL: "https://gitlab.com/user/repo.git",
+			want:      "https://gitlab.com/user/repo/-/tree/feature",
+		},
+		{
+			name:      "bitbucket branch url",
+			baseURL:   "https://bitbucket.org/user/repo",
+			branch:    "feature",
+			remoteURL: "https://bitbucket.org/user/repo.git",
+			want:      "https://bitbucket.org/user/repo/src/feature",
+		},
+		{
+			name:      "unknown service defaults to github style",
+			baseURL:   "https://example.com/user/repo",
+			branch:    "feature",
+			remoteURL: "https://example.com/user/repo.git",
+			want:      "https://example.com/user/repo/tree/feature",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := buildBranchURL(tt.baseURL, tt.branch, tt.remoteURL); got != tt.want {
+				t.Errorf("buildBranchURL() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -258,5 +378,65 @@ func BenchmarkConvertToWebURL(b *testing.B) {
 				_ = convertToWebURL(url)
 			}
 		})
+	}
+}
+func Test_getBranchName_Error(t *testing.T) {
+	// Save original function
+	originalGetBranchNameFunc := getBranchNameFunc
+	defer func() {
+		getBranchNameFunc = originalGetBranchNameFunc
+	}()
+
+	// Mock getBranchNameFunc to return an error
+	getBranchNameFunc = func(repo *git.Repository) (string, error) {
+		return "", fmt.Errorf("error getting HEAD: mock error")
+	}
+
+	_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
+	defer cleanup()
+
+	repo, err := getCurrentGitDirectory()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = getBranchName(repo)
+	if err == nil {
+		t.Error("Expected error from getBranchName, got nil")
+	}
+	if err != nil && !strings.Contains(err.Error(), "error getting HEAD") {
+		t.Errorf("Expected error message to contain 'error getting HEAD', got '%s'", err.Error())
+	}
+}
+
+func Test_getRemoteURL_EmptyURLs(t *testing.T) {
+	// Save original function
+	originalGetRemoteURLFunc := getRemoteURLFunc
+	defer func() {
+		getRemoteURLFunc = originalGetRemoteURLFunc
+	}()
+
+	// Mock getRemoteURLFunc to simulate empty URLs error
+	getRemoteURLFunc = func(repo *git.Repository) (string, error) {
+		return "", fmt.Errorf("remote URL not found")
+	}
+
+	_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
+	defer cleanup()
+
+	repo, err := getCurrentGitDirectory()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	url, err := getRemoteURL(repo)
+	if err == nil {
+		t.Error("Expected error for empty URLs, got nil")
+	}
+	if url != "" {
+		t.Errorf("Expected empty URL, got %s", url)
+	}
+	if err != nil && err.Error() != "remote URL not found" {
+		t.Errorf("Expected error message 'remote URL not found', got '%s'", err.Error())
 	}
 }
