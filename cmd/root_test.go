@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/spf13/cobra"
-	"path/filepath"
 	"github.com/zhaochunqi/git-open/internal/testhelper"
+	"path/filepath"
 )
 
 func Test_rootCmd(t *testing.T) {
@@ -46,7 +46,7 @@ func Test_rootCmd(t *testing.T) {
 			cmd := &cobra.Command{}
 			buf := new(bytes.Buffer)
 			cmd.SetOut(buf)
-			
+
 			// Set flags
 			cmd.Flags().Bool("plain", false, "")
 			if err := cmd.Flags().Set("plain", "true"); err != nil {
@@ -69,33 +69,33 @@ func Test_rootCmd(t *testing.T) {
 
 func Test_Execute(t *testing.T) {
 	tests := []struct {
-		name      string
-		args      []string
-		wantError bool
+		name        string
+		args        []string
+		wantError   bool
 		expectedURL string // New field to store the expected URL
 	}{
 		{
-			name: "normal execution - github main branch",
-			wantError: false,
+			name:        "normal execution - github main branch",
+			wantError:   false,
 			expectedURL: "https://github.com/zhaochunqi/git-open",
 		},
 		{
-			name: "normal execution - github feature branch",
-			wantError: false,
+			name:        "normal execution - github feature branch",
+			wantError:   false,
 			expectedURL: "https://github.com/zhaochunqi/git-open/tree/feature-branch",
 		},
 		{
-			name: "normal execution - gitlab feature branch",
-			wantError: false,
+			name:        "normal execution - gitlab feature branch",
+			wantError:   false,
 			expectedURL: "https://gitlab.com/zhaochunqi/git-open/-/tree/feature-branch",
 		},
 		{
-			name: "normal execution - bitbucket feature branch",
-			wantError: false,
+			name:        "normal execution - bitbucket feature branch",
+			wantError:   false,
 			expectedURL: "https://bitbucket.org/zhaochunqi/git-open/src/feature-branch",
 		},
 		{
-			name: "no git repo",
+			name:      "no git repo",
 			wantError: true,
 		},
 	}
@@ -105,7 +105,7 @@ func Test_Execute(t *testing.T) {
 			// Save and restore os.Args
 			oldArgs := os.Args
 			defer func() { os.Args = oldArgs }()
-			
+
 			if tt.args != nil {
 				os.Args = tt.args
 			}
@@ -168,11 +168,11 @@ func Test_initConfig(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "normal config",
+			name:    "normal config",
 			wantErr: false,
 		},
 		{
-			name: "with config file",
+			name:    "with config file",
 			wantErr: false,
 		},
 	}
@@ -189,18 +189,18 @@ func Test_initConfig(t *testing.T) {
 				})
 
 				// Create temporary home directory
-			tmpHome, err := os.MkdirTemp("", "home")
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(func() {
-				os.RemoveAll(tmpHome)
-			})
+				tmpHome, err := os.MkdirTemp("", "home")
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					os.RemoveAll(tmpHome)
+				})
 
 				// Set temporary home directory
-			if err := os.Setenv("HOME", tmpHome); err != nil {
-				t.Fatal(err)
-			}
+				if err := os.Setenv("HOME", tmpHome); err != nil {
+					t.Fatal(err)
+				}
 			case "with config file":
 				// Save original home directory
 				origHome := os.Getenv("HOME")
@@ -209,30 +209,30 @@ func Test_initConfig(t *testing.T) {
 				})
 
 				// Create temporary home directory
-			tmpHome, err := os.MkdirTemp("", "home")
-			if err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(func() {
-				os.RemoveAll(tmpHome)
-			})
+				tmpHome, err := os.MkdirTemp("", "home")
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					os.RemoveAll(tmpHome)
+				})
 
 				// Create .git-open directory
-			configDir := filepath.Join(tmpHome, ".git-open")
-			if err := os.MkdirAll(configDir, 0755); err != nil {
-				t.Fatal(err)
-			}
+				configDir := filepath.Join(tmpHome, ".git-open")
+				if err := os.MkdirAll(configDir, 0755); err != nil {
+					t.Fatal(err)
+				}
 
 				// Create config file
-			configFile := filepath.Join(configDir, "config.yaml")
-			if err := os.WriteFile(configFile, []byte("browser: firefox"), 0644); err != nil {
-				t.Fatal(err)
-			}
+				configFile := filepath.Join(configDir, "config.yaml")
+				if err := os.WriteFile(configFile, []byte("browser: firefox"), 0644); err != nil {
+					t.Fatal(err)
+				}
 
 				// Set temporary home directory
-			if err := os.Setenv("HOME", tmpHome); err != nil {
-				t.Fatal(err)
-			}
+				if err := os.Setenv("HOME", tmpHome); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			initConfig()
@@ -245,7 +245,7 @@ func Test_rootCmd_ErrorHandling(t *testing.T) {
 	originalGetRemoteURLFunc := getRemoteURLFunc
 	originalGetBranchNameFunc := getBranchNameFunc
 	originalOpenURLInBrowser := OpenURLInBrowser
-	
+
 	defer func() {
 		getCurrentGitDirectoryFunc = originalGetCurrentGitDirectoryFunc
 		getRemoteURLFunc = originalGetRemoteURLFunc
@@ -272,7 +272,7 @@ func Test_rootCmd_ErrorHandling(t *testing.T) {
 			setup: func() {
 				_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/test/repo.git", "main")
 				t.Cleanup(cleanup)
-				
+
 				getRemoteURLFunc = func(repo *git.Repository) (string, error) {
 					return "", errors.New("remote URL error")
 				}
@@ -284,7 +284,7 @@ func Test_rootCmd_ErrorHandling(t *testing.T) {
 			setup: func() {
 				_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/test/repo.git", "main")
 				t.Cleanup(cleanup)
-				
+
 				getBranchNameFunc = func(repo *git.Repository) (string, error) {
 					return "", errors.New("branch name error")
 				}
@@ -296,7 +296,7 @@ func Test_rootCmd_ErrorHandling(t *testing.T) {
 			setup: func() {
 				_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/test/repo.git", "main")
 				t.Cleanup(cleanup)
-				
+
 				OpenURLInBrowser = func(url string) error {
 					return errors.New("browser error")
 				}
@@ -312,18 +312,18 @@ func Test_rootCmd_ErrorHandling(t *testing.T) {
 			getRemoteURLFunc = originalGetRemoteURLFunc
 			getBranchNameFunc = originalGetBranchNameFunc
 			OpenURLInBrowser = originalOpenURLInBrowser
-			
+
 			tt.setup()
-			
+
 			// Create a buffer to capture stderr
 			buf := new(bytes.Buffer)
 			cmd := &cobra.Command{}
 			cmd.SetErr(buf)
-			
+
 			// Run the root command function
 			runE := rootCmd.RunE
 			err := runE(cmd, []string{})
-			
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("rootCmd.RunE() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -355,7 +355,7 @@ func Test_initConfig_ErrorCases(t *testing.T) {
 				t.Cleanup(func() {
 					os.Remove(tmpFile.Name())
 				})
-				
+
 				cfgFile = tmpFile.Name()
 			},
 		},
@@ -381,7 +381,7 @@ func Test_initConfig_ErrorCases(t *testing.T) {
 				if err := os.Setenv("HOME", tmpHome); err != nil {
 					t.Fatal(err)
 				}
-				
+
 				cfgFile = ""
 			},
 		},

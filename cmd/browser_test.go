@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"runtime"
 	"testing"
 )
 
@@ -50,6 +51,34 @@ func Test_openURLInBrowser(t *testing.T) {
 
 			if err := openURLInBrowserFunc(tt.url); (err != nil) != tt.wantErr {
 				t.Errorf("openURLInBrowserFunc() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_openWithXdgOpen(t *testing.T) {
+	// This test is for Linux-specific functionality
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping test on non-Linux platforms")
+	}
+
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		{
+			name:    "success",
+			url:     "https://github.com/zhaochunqi/git-open",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := openWithXdgOpen(tt.url)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("openWithXdgOpen() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
