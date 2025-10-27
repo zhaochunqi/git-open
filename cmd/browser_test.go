@@ -238,34 +238,73 @@ func Test_openWithWindowsStart(t *testing.T) {
 }
 
 func Test_openURLInBrowser_UnsupportedPlatform(t *testing.T) {
-	// Test error handling for unsupported platforms
-	// We can't actually test this directly since we can't change runtime.GOOS,
-	// but we can test the error message format
-	url := "https://github.com/zhaochunqi/git-open"
-	
-	// Create a mock scenario by testing the current platform
-	// This test primarily ensures the function structure is correct
-	err := openURLInBrowser(url)
-	
-	// On supported platforms (linux, darwin, windows), this should succeed
-	// On unsupported platforms, this would return an error
-	supportedPlatforms := map[string]bool{
-		"linux":   true,
-		"darwin":  true,
-		"windows": true,
+	// Save original function
+	originalGetPlatform := getPlatform
+	defer func() {
+		getPlatform = originalGetPlatform
+	}()
+
+	tests := []struct {
+		name     string
+		platform string
+		url      string
+		wantErr  bool
+		errMsg   string
+	}{
+		{
+			name:     "Linux platform",
+			platform: "linux",
+			url:      "https://github.com/test/repo",
+			wantErr:  false, // May fail in CI but function should be called
+		},
+		{
+			name:     "macOS platform", 
+			platform: "darwin",
+			url:      "https://github.com/test/repo",
+			wantErr:  false, // May fail in CI but function should be called
+		},
+		{
+			name:     "Windows platform",
+			platform: "windows", 
+			url:      "https://github.com/test/repo",
+			wantErr:  false, // May fail in CI but function should be called
+		},
+		{
+			name:     "Unsupported platform - FreeBSD",
+			platform: "freebsd",
+			url:      "https://github.com/test/repo",
+			wantErr:  true,
+			errMsg:   "unsupported platform: freebsd",
+		},
+		{
+			name:     "Unsupported platform - Plan9",
+			platform: "plan9",
+			url:      "https://github.com/test/repo",
+			wantErr:  true,
+			errMsg:   "unsupported platform: plan9",
+		},
 	}
-	
-	if supportedPlatforms[runtime.GOOS] {
-		// Current platform is supported, so error should be nil or a command execution error
-		if err != nil {
-			t.Logf("openURLInBrowser() error on supported platform %s: %v (this might be expected in CI)", runtime.GOOS, err)
-		}
-	} else {
-		// Current platform is not supported, should return unsupported platform error
-		if err == nil {
-			t.Errorf("openURLInBrowser() should return error for unsupported platform %s", runtime.GOOS)
-		} else if err.Error() != "unsupported platform: "+runtime.GOOS {
-			t.Errorf("openURLInBrowser() error = %v, want 'unsupported platform: %s'", err, runtime.GOOS)
-		}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Mock the platform
+			getPlatform = func() string {
+				return tt.platform
+			}
+
+			err := openURLInBrowser(tt.url)
+			
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("openURLInBrowser() expected error for platform %s, got nil", tt.platform)
+				} else if err.Error() != tt.errMsg {
+					t.Errorf("openURLInBrowser() error = %v, want %s", err, tt.errMsg)
+				}
+			} else {
+				// For supported platforms, the function should be called
+				// It might fail due to missing commands in CI, but that's expected
+				t.Logf("openURLInBrowser() for platform %s returned: %v", tt.platform, err)
+			}
+		})
 	}
 }
