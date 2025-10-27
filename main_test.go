@@ -43,25 +43,25 @@ func Test_runApp(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		args      []string
-		wantURL   string
+		name       string
+		args       []string
+		wantURL    string
 		executeErr error // New field to simulate cmd.Execute error
-		wantErr   bool  // Expect runApp to return an error
+		wantErr    bool  // Expect runApp to return an error
 	}{
 		{
-			name:      "default behavior",
-			args:      []string{"git-open"},
-			wantURL:   "https://github.com/zhaochunqi/git-open/tree/feat/open-branch",
+			name:       "default behavior",
+			args:       []string{"git-open"},
+			wantURL:    "https://github.com/zhaochunqi/git-open/tree/feat/open-branch",
 			executeErr: nil,
-			wantErr:   false,
+			wantErr:    false,
 		},
 		{
-			name:      "error from cmd.Execute",
-			args:      []string{"git-open"},
-			wantURL:   "", // Not relevant for this test
+			name:       "error from cmd.Execute",
+			args:       []string{"git-open"},
+			wantURL:    "", // Not relevant for this test
 			executeErr: errors.New("mock execute error"),
-			wantErr:   true,
+			wantErr:    true,
 		},
 	}
 
@@ -71,7 +71,7 @@ func Test_runApp(t *testing.T) {
 		exitFunc = func(code int) {
 			actualExitCode = code
 			// We don't want to actually exit during tests
-			panic("os.Exit called") 
+			panic("os.Exit called")
 		}
 
 		t.Run(tt.name, func(t *testing.T) {

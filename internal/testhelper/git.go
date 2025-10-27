@@ -2,9 +2,9 @@ package testhelper
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
-	"path/filepath"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
@@ -16,7 +16,7 @@ import (
 // It returns the temporary directory path and a cleanup function.
 func SetupTestRepo(t *testing.T, remoteURL string, branchName string) (string, func()) {
 	t.Helper()
-	
+
 	// Create temporary directory
 	tmpDir, err := os.MkdirTemp("", "git-test")
 	if err != nil {

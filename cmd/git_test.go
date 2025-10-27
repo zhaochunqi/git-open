@@ -79,31 +79,31 @@ func Test_getRemoteURL(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name:     "github https url",
+			name:      "github https url",
 			remoteURL: "https://github.com/zhaochunqi/git-open.git",
-			want:     "https://github.com/zhaochunqi/git-open.git",
-			wantErr:  false,
+			want:      "https://github.com/zhaochunqi/git-open.git",
+			wantErr:   false,
 		},
 		{
-			name:     "github ssh url",
+			name:      "github ssh url",
 			remoteURL: "git@github.com:zhaochunqi/git-open.git",
-			want:     "git@github.com:zhaochunqi/git-open.git",
-			wantErr:  false,
+			want:      "git@github.com:zhaochunqi/git-open.git",
+			wantErr:   false,
 		},
 		{
-			name:     "gitlab https url",
+			name:      "gitlab https url",
 			remoteURL: "https://gitlab.com/user/repo.git",
-			want:     "https://gitlab.com/user/repo.git",
-			wantErr:  false,
+			want:      "https://gitlab.com/user/repo.git",
+			wantErr:   false,
 		},
 		{
-			name:     "no remote url",
+			name:      "no remote url",
 			remoteURL: "",
-			want:     "",
-			wantErr:  true,
+			want:      "",
+			wantErr:   true,
 		},
 		{
-			name:     "empty remote urls",
+			name:      "empty remote urls",
 			remoteURL: "https://github.com/zhaochunqi/git-open.git",
 			setup: func(t *testing.T, repo *git.Repository) {
 				// Remove all remotes
@@ -120,7 +120,6 @@ func Test_getRemoteURL(t *testing.T) {
 			want:    "",
 			wantErr: true,
 		},
-
 	}
 
 	for _, tt := range tests {
@@ -250,7 +249,6 @@ func Test_getBranchName(t *testing.T) {
 			branchName: "feature-branch",
 			wantErr:    false,
 		},
-
 	}
 
 	for _, tt := range tests {

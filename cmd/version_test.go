@@ -13,19 +13,19 @@ func Test_versionCmd(t *testing.T) {
 	origVersion := Version
 	origCommitHash := CommitHash
 	origBuildDate := BuildDate
-	
+
 	// Restore original values after test
 	defer func() {
 		Version = origVersion
 		CommitHash = origCommitHash
 		BuildDate = origBuildDate
 	}()
-	
+
 	// Set test values
 	Version = "1.0.0"
 	CommitHash = "abc123"
 	BuildDate = "2025-01-19"
-	
+
 	// Create buffer to capture output
 	buf := new(bytes.Buffer)
 	cmd := &cobra.Command{}
@@ -36,7 +36,7 @@ func Test_versionCmd(t *testing.T) {
 
 	expected := fmt.Sprintf("Version: %s\nGit Commit: %s\nBuild Date: %s\n",
 		Version, CommitHash, BuildDate)
-	
+
 	if got := buf.String(); got != expected {
 		t.Errorf("version command output = %q, want %q", got, expected)
 	}
