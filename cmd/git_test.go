@@ -249,11 +249,22 @@ func Test_getBranchName(t *testing.T) {
 			branchName: "feature-branch",
 			wantErr:    false,
 		},
+		{
+			name:       "uninitialized repo with HEAD reference",
+			remoteURL:  "https://github.com/zhaochunqi/git-open.git",
+			branchName: "main",
+			wantErr:    true, // Expect error when there's no commit
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, cleanup := testhelper.SetupTestRepo(t, tt.remoteURL, tt.branchName)
+			var cleanup func()
+			if tt.name == "uninitialized repo with HEAD reference" {
+				_, cleanup = testhelper.SetupTestRepoWithoutCommit(t, tt.remoteURL, tt.branchName)
+			} else {
+				_, cleanup = testhelper.SetupTestRepo(t, tt.remoteURL, tt.branchName)
+			}
 			defer cleanup()
 
 			repo, err := getCurrentGitDirectory()

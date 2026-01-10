@@ -104,3 +104,74 @@ func SetupTestRepo(t *testing.T, remoteURL string, branchName string) (string, f
 
 	return tmpDir, cleanup
 }
+
+// SetupTestRepoWithoutCommit creates a temporary git repository without any commits.
+// It returns the temporary directory path and a cleanup function.
+func SetupTestRepoWithoutCommit(t *testing.T, remoteURL string, branchName string) (string, func()) {
+	t.Helper()
+
+	// Create temporary directory
+	tmpDir, err := os.MkdirTemp("", "git-test-no-commit")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Initialize git repository
+	repo, err := git.PlainInit(tmpDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add remote if URL is provided
+	if remoteURL != "" {
+		_, err = repo.CreateRemote(&config.RemoteConfig{
+			Name: "origin",
+			URLs: []string{remoteURL},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Create a worktree and add a file (but don't commit)
+	w, err := repo.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("hello"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = w.Add("test.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a symbolic reference for HEAD to point to the specified branch
+	if branchName != "" {
+		headRef := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.ReferenceName("refs/heads/"+branchName))
+		err = repo.Storer.SetReference(headRef)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Save current directory
+	currentDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Change to test directory
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	// Return cleanup function
+	cleanup := func() {
+		os.Chdir(currentDir)
+		os.RemoveAll(tmpDir)
+	}
+
+	return tmpDir, cleanup
+}

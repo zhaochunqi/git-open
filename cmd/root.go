@@ -40,14 +40,12 @@ and converts it to a web URL. The web URL is then printed to the console.`,
 		}
 
 		branchName, err := getBranchName(repo)
-		if err != nil {
-			return fmt.Errorf("error getting branch name: %w", err)
-		}
-
-		// For now, we only append branch name if it's not 'main' or 'master'.
-		// This can be improved later to fetch default branch from remote or allow configuration.
-		if branchName != "main" && branchName != "master" {
-			webURL = buildBranchURL(webURL, branchName, remoteURL)
+		if err == nil {
+			// For now, we only append branch name if it's not 'main' or 'master'.
+			// This can be improved later to fetch default branch from remote or allow configuration.
+			if branchName != "main" && branchName != "master" {
+				webURL = buildBranchURL(webURL, branchName, remoteURL)
+			}
 		}
 
 		err = openURLInBrowserFunc(webURL)

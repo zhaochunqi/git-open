@@ -289,7 +289,7 @@ func Test_rootCmd_ErrorHandling(t *testing.T) {
 					return "", errors.New("branch name error")
 				}
 			},
-			wantErr: true,
+			wantErr: false, // Branch name error should not cause command to fail, opens main page
 		},
 		{
 			name: "browser error",

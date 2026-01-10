@@ -80,10 +80,21 @@ func convertToWebURL(url string) string {
 // getBranchNameFunc is a variable that can be replaced for testing
 var getBranchNameFunc = func(repo *git.Repository) (string, error) {
 	head, err := repo.Head()
-	if err != nil {
+	if err == nil {
+		return head.Name().Short(), nil
+	}
+
+	ref, refErr := repo.Reference("HEAD", true)
+	if refErr != nil {
 		return "", fmt.Errorf("error getting HEAD: %w", err)
 	}
-	return head.Name().Short(), nil
+
+	target := ref.Target()
+	if target.IsBranch() {
+		return target.Short(), nil
+	}
+
+	return "", fmt.Errorf("error getting HEAD: %w", err)
 }
 
 func getBranchName(repo *git.Repository) (string, error) {
