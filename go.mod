@@ -3,7 +3,7 @@ module github.com/zhaochunqi/git-open
 go 1.23.5
 
 require (
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 )
 
