@@ -158,3 +158,218 @@ func TestSetupTestRepo_ErrorCases(t *testing.T) {
 		t.Errorf("Remote URL not set correctly")
 	}
 }
+
+func TestSetupTestRepoWithoutCommit(t *testing.T) {
+	tests := []struct {
+		name       string
+		remoteURL  string
+		branchName string
+	}{
+		{
+			name:       "basic repo without remote",
+			remoteURL:  "",
+			branchName: "",
+		},
+		{
+			name:       "repo with remote URL",
+			remoteURL:  "https://github.com/test/repo.git",
+			branchName: "",
+		},
+		{
+			name:       "repo with remote and branch",
+			remoteURL:  "https://github.com/test/repo.git",
+			branchName: "feature/test",
+		},
+		{
+			name:       "repo with main branch",
+			remoteURL:  "https://github.com/test/repo.git",
+			branchName: "main",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir, cleanup := SetupTestRepoWithoutCommit(t, tt.remoteURL, tt.branchName)
+			defer cleanup()
+
+			if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
+				t.Errorf("SetupTestRepoWithoutCommit() did not create directory at %s", tmpDir)
+			}
+
+			repo, err := git.PlainOpen(tmpDir)
+			if err != nil {
+				t.Errorf("SetupTestRepoWithoutCommit() did not create a valid git repository: %v", err)
+			}
+
+			testFile := filepath.Join(tmpDir, "test.txt")
+			if _, err := os.Stat(testFile); os.IsNotExist(err) {
+				t.Errorf("SetupTestRepoWithoutCommit() did not create test.txt file")
+			}
+
+			w, err := repo.Worktree()
+			if err != nil {
+				t.Errorf("SetupTestRepoWithoutCommit() failed to get worktree: %v", err)
+			}
+
+			status, err := w.Status()
+			if err != nil {
+				t.Errorf("SetupTestRepoWithoutCommit() failed to get status: %v", err)
+			}
+
+			if status.IsClean() {
+				t.Errorf("SetupTestRepoWithoutCommit() should have uncommitted changes")
+			}
+
+			if tt.remoteURL != "" {
+				remote, err := repo.Remote("origin")
+				if err != nil {
+					t.Errorf("SetupTestRepoWithoutCommit() did not create origin remote: %v", err)
+				} else {
+					config := remote.Config()
+					if len(config.URLs) == 0 || config.URLs[0] != tt.remoteURL {
+						t.Errorf("SetupTestRepoWithoutCommit() did not set correct remote URL. Got %v, want %v", config.URLs, tt.remoteURL)
+					}
+				}
+			}
+
+			if tt.branchName != "" {
+				head, err := repo.Storer.Reference(plumbing.HEAD)
+				if err != nil {
+					t.Errorf("SetupTestRepoWithoutCommit() did not set HEAD: %v", err)
+				}
+
+				if head.Type() != plumbing.SymbolicReference {
+					t.Errorf("SetupTestRepoWithoutCommit() HEAD should be a symbolic reference")
+				}
+
+				branchRefName := plumbing.ReferenceName("refs/heads/" + tt.branchName)
+				if head.Target() != branchRefName {
+					t.Errorf("SetupTestRepoWithoutCommit() HEAD does not point to %s. Got %s", branchRefName, head.Target())
+				}
+			}
+		})
+	}
+}
+
+func TestSetupTestRepoWithoutCommit_Cleanup(t *testing.T) {
+	tmpDir, cleanup := SetupTestRepoWithoutCommit(t, "", "")
+	defer cleanup()
+
+	if _, err := os.Stat(tmpDir); os.IsNotExist(err) {
+		t.Errorf("SetupTestRepoWithoutCommit() did not create directory")
+	}
+
+	cleanup()
+
+	if _, err := os.Stat(tmpDir); !os.IsNotExist(err) {
+		t.Errorf("SetupTestRepoWithoutCommit() cleanup did not remove directory")
+	}
+}
+
+func TestSetupTestRepo_DirectoryChange(t *testing.T) {
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir, cleanup := SetupTestRepo(t, "", "")
+	defer cleanup()
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	absTmpDir, err := filepath.Abs(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	absCurrentDir, err := filepath.Abs(currentDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !samePath(absCurrentDir, absTmpDir) {
+		t.Errorf("SetupTestRepo() did not change to test directory. Expected %s, got %s", absTmpDir, absCurrentDir)
+	}
+
+	cleanup()
+
+	currentDir, err = os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	absOriginalDir, err := filepath.Abs(originalDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	absCurrentDir, err = filepath.Abs(currentDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !samePath(absCurrentDir, absOriginalDir) {
+		t.Errorf("SetupTestRepo() cleanup did not restore original directory. Expected %s, got %s", absOriginalDir, absCurrentDir)
+	}
+}
+
+func TestSetupTestRepoWithoutCommit_DirectoryChange(t *testing.T) {
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpDir, cleanup := SetupTestRepoWithoutCommit(t, "", "")
+	defer cleanup()
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	absTmpDir, err := filepath.Abs(tmpDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	absCurrentDir, err := filepath.Abs(currentDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !samePath(absCurrentDir, absTmpDir) {
+		t.Errorf("SetupTestRepoWithoutCommit() did not change to test directory. Expected %s, got %s", absTmpDir, absCurrentDir)
+	}
+
+	cleanup()
+
+	currentDir, err = os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	absOriginalDir, err := filepath.Abs(originalDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	absCurrentDir, err = filepath.Abs(currentDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !samePath(absCurrentDir, absOriginalDir) {
+		t.Errorf("SetupTestRepoWithoutCommit() cleanup did not restore original directory. Expected %s, got %s", absOriginalDir, absCurrentDir)
+	}
+}
+
+func samePath(p1, p2 string) bool {
+	p1Eval, err := filepath.EvalSymlinks(p1)
+	if err != nil {
+		return false
+	}
+	p2Eval, err := filepath.EvalSymlinks(p2)
+	if err != nil {
+		return false
+	}
+	return p1Eval == p2Eval
+}
