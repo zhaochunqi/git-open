@@ -1,0 +1,22 @@
+name: Update Homebrew Tap
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  update-homebrew-tap:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update Homebrew formula
+        uses: dawidd6/action-homebrew-bump-formula@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          formula: git-open
+          tap: zhaochunqi/homebrew-tap
