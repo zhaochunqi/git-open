@@ -64,6 +64,7 @@ homebrew_casks:
     repository:
       owner: zhaochunqi
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/zhaochunqi/git-open
     description: Open the web URL of the Git repository
     caveats: "Use 'git-open' command to get the web URL of your git repository."
