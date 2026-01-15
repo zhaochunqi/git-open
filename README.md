@@ -37,7 +37,7 @@ This method allows for easy version management and isolation.
 If you have Homebrew installed, you can install the tool via our Homebrew tap:
 
 ```sh
-brew install zhaochunqi/tap/git-open
+brew install --cask zhaochunqi/tap/git-open
 ```
 
 This is the recommended method for macOS users as it provides easy updates and management.
