@@ -31,19 +31,14 @@ builds:
       - windows
       - darwin
     goarch:
-      - "386"
       - amd64
-      - arm
       - arm64
-      - ppc64
-    goarm:
-      - "7"
 
 archives:
   - formats: ["tar.gz"]
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
