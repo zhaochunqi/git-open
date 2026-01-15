@@ -17,6 +17,6 @@ jobs:
       - name: Update Homebrew formula
         uses: dawidd6/action-homebrew-bump-formula@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN}}
           formula: git-open
           tap: zhaochunqi/homebrew-tap
