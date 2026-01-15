@@ -60,3 +60,15 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+
+homebrew_casks:
+  - name: git-open
+    repository:
+      owner: zhaochunqi
+      name: homebrew-tap
+    homepage: https://github.com/zhaochunqi/git-open
+    description: Open the web URL of the Git repository
+    caveats: "Use 'git-open' command to get the web URL of your git repository."
+    ids:
+      - git-open_Darwin_x86_64
+      - git-open_Darwin_arm64
