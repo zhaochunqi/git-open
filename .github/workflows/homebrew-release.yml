@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Update Homebrew formula
-        uses: dawidd6/action-homebrew-bump-formula@v3
+        uses: dawidd6/action-homebrew-bump-formula@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           formula: git-open
