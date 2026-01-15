@@ -40,8 +40,22 @@ builds:
       - "7"
 
 archives:
-  - formats: ["tar.gz"]
-    # this name template makes the OS and Arch compatible with the results of `uname`.
+  - id: git-open-darwin-x86_64
+    formats: ["tar.gz"]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      x86_64
+
+  - id: git-open-darwin-arm64
+    formats: ["tar.gz"]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      arm64
+
+  - id: git-open-linux
+    formats: ["tar.gz"]
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -49,10 +63,16 @@ archives:
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-    # use zip for windows archives
-    format_overrides:
-      - goos: windows
-        formats: ["zip"]
+
+  - id: git-open-windows
+    formats: ["zip"]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
 
 changelog:
   sort: asc
@@ -70,5 +90,5 @@ homebrew_casks:
     description: Open the web URL of the Git repository
     caveats: "Use 'git-open' command to get the web URL of your git repository."
     ids:
-      - git-open_Darwin_x86_64
-      - git-open_Darwin_arm64
+      - git-open-darwin-x86_64
+      - git-open-darwin-arm64
