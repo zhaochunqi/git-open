@@ -40,32 +40,10 @@ builds:
       - "7"
 
 archives:
-  - id: git-open-darwin-x86_64
-    formats: ["tar.gz"]
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      x86_64
-
-  - id: git-open-darwin-arm64
-    formats: ["tar.gz"]
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      arm64
-
-  - id: git-open-linux
-    formats: ["tar.gz"]
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- title .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "386" }}i386
-      {{- else }}{{ .Arch }}{{ end }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
-
-  - id: git-open-windows
-    formats: ["zip"]
+  - formats: ["tar.gz"]
+    format_overrides:
+      - goos: windows
+        format: zip
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -89,6 +67,3 @@ homebrew_casks:
     homepage: https://github.com/zhaochunqi/git-open
     description: Open the web URL of the Git repository
     caveats: "Use 'git-open' command to get the web URL of your git repository."
-    ids:
-      - git-open-darwin-x86_64
-      - git-open-darwin-arm64
