@@ -67,4 +67,14 @@ homebrew_casks:
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     homepage: https://github.com/zhaochunqi/git-open
     description: Open the web URL of the Git repository
-    caveats: "Use 'git-open' command to get the web URL of your git repository."
+    caveats: "Use 'git-open' command to open the web URL of your git repository."
+    
+    # 安全规避策略（如果你没有 Apple 开发者账号进行公证）
+    # 在安装后自动移除隔离属性，否则 macOS 会阻止运行
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr",
+              args: ["-dr", "com.apple.quarantine", "#{staged_path}/git-open"]
+          end
