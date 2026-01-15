@@ -1,8 +1,19 @@
 # Git Open
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/zhaochunqi/git-open)](https://goreportcard.com/report/github.com/zhaochunqi/git-open) [![codecov](https://codecov.io/github/zhaochunqi/git-open/graph/badge.svg?token=TXC9ZOSHFT)](https://codecov.io/github/zhaochunqi/git-open)
+[![Go Report Card](https://goreportcard.com/badge/github.com/zhaochunqi/git-open)](https://goreportcard.com/report/github.com/zhaochunqi/git-open) [![codecov](https://codecov.io/github.com/zhaochunqi/git-open/graph/badge.svg?token=TXC9ZOSHFT)](https://codecov.io/github.com/zhaochunqi/git-open)
 
-This is a Go-based tool that allows you to open the current repository in a web browser. It's a simple yet efficient solution for quickly accessing your project's online resources.
+## 🚀 Quick Install
+
+### Recommended (macOS)
+```sh
+brew install --cask zhaochunqi/tap/git-open
+```
+
+
+
+---
+
+A Go-based tool that allows you to open the current repository in a web browser with a single command. It's a simple yet efficient solution for quickly accessing your project's online resources.
 
 ## Features
 
@@ -10,37 +21,46 @@ This is a Go-based tool that allows you to open the current repository in a web 
 * Cross-Platform: Built using Go, the tool is compatible with various operating systems.
 * Lightweight: Minimal dependencies and efficient code ensure the tool runs smoothly.
 
-## Installation
+## Installation Options
 
 There are multiple ways to install the tool:
 
-### Using Go
+### Homebrew (macOS) - Recommended
 
-Ensure you have Go installed on your system. Then, use the following command:
-
-```sh
-go install github.com/zhaochunqi/git-open@latest
-```
-
-### Using mise with ubi
-
-If you prefer using mise, you can install the tool with:
-
-```sh
-mise use -g ubi:zhaochunqi/git-open
-```
-
-This method allows for easy version management and isolation.
-
-### Using Homebrew
-
-If you have Homebrew installed, you can install the tool via our Homebrew tap:
+The easiest method for macOS users with automatic updates:
 
 ```sh
 brew install --cask zhaochunqi/tap/git-open
 ```
 
-This is the recommended method for macOS users as it provides easy updates and management.
+### GitHub Releases
+
+Download the pre-compiled binary for your platform:
+
+```sh
+# macOS (Intel)
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open-darwin-amd64 -o git-open
+chmod +x git-open
+sudo mv git-open /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open-darwin-arm64 -o git-open
+chmod +x git-open
+sudo mv git-open /usr/local/bin/
+
+# Linux (x64)
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open-linux-amd64 -o git-open
+chmod +x git-open
+sudo mv git-open /usr/local/bin/
+```
+
+### mise with ubi
+
+For users who prefer mise for version management:
+
+```sh
+mise use -g ubi:zhaochunqi/git-open
+```
 
 ## Usage
 
