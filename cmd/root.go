@@ -17,6 +17,13 @@ var rootCmd = &cobra.Command{
 	Long: `This application retrieves the remote URL of the Git repository in the current working directory
 and converts it to a web URL. The web URL is then printed to the console.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		version, _ := cmd.Flags().GetBool("version")
+		if version {
+			fmt.Fprintf(cmd.OutOrStdout(), "Version: %s\n", Version)
+			fmt.Fprintf(cmd.OutOrStdout(), "Git Commit: %s\n", CommitHash)
+			fmt.Fprintf(cmd.OutOrStdout(), "Build Date: %s\n", BuildDate)
+			return nil
+		}
 		// Get the Git repository in the current working directory
 		repo, err := getCurrentGitDirectory()
 		if err != nil {
@@ -78,6 +85,7 @@ func init() {
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	rootCmd.Flags().BoolP("plain", "p", false, "Just print the web url without opening.")
+	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 }
 
 // initConfig reads in config file and ENV variables if set.

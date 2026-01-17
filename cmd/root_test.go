@@ -331,6 +331,56 @@ func Test_rootCmd_ErrorHandling(t *testing.T) {
 	}
 }
 
+func Test_rootCmd_VersionFlag(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		wantOutput string
+		wantErr    bool
+	}{
+		{
+			name:       "with -v flag",
+			args:       []string{"-v"},
+			wantOutput: "Version: dev\nGit Commit: none\nBuild Date: unknown\n",
+			wantErr:    false,
+		},
+		{
+			name:       "with --version flag",
+			args:       []string{"--version"},
+			wantOutput: "Version: dev\nGit Commit: none\nBuild Date: unknown\n",
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a new command for testing
+			cmd := &cobra.Command{}
+			buf := new(bytes.Buffer)
+			cmd.SetOut(buf)
+
+			// Set flags
+			cmd.Flags().Bool("version", false, "")
+			if err := cmd.Flags().Set("version", "true"); err != nil {
+				t.Fatal(err)
+			}
+
+			// Run the root command function
+			runE := rootCmd.RunE
+			err := runE(cmd, tt.args)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("rootCmd.RunE() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if got := buf.String(); got != tt.wantOutput {
+				t.Errorf("root command output = %q, want %q", got, tt.wantOutput)
+			}
+		})
+	}
+}
+
 func Test_initConfig_ErrorCases(t *testing.T) {
 	// Save original cfgFile
 	originalCfgFile := cfgFile
