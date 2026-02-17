@@ -12,7 +12,6 @@ import (
 )
 
 func Test_getCurrentGitDirectory(t *testing.T) {
-	// Use setupTestRepo for setup
 	_, cleanup := testhelper.SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
 	defer cleanup()
 
@@ -56,6 +55,59 @@ func Test_getCurrentGitDirectory(t *testing.T) {
 				t.Error("getCurrentGitDirectory() = nil, want valid repository")
 			}
 		})
+	}
+}
+
+func Test_getCurrentGitDirectory_Worktree(t *testing.T) {
+	_, cleanup := testhelper.SetupTestWorktree(t, "https://github.com/zhaochunqi/git-open.git", "feature-branch")
+	defer cleanup()
+
+	repo, err := getCurrentGitDirectory()
+	if err != nil {
+		t.Fatalf("getCurrentGitDirectory() error in worktree = %v", err)
+	}
+	if repo == nil {
+		t.Error("getCurrentGitDirectory() = nil, want valid repository")
+	}
+}
+
+func Test_getRemoteURL_Worktree(t *testing.T) {
+	_, cleanup := testhelper.SetupTestWorktree(t, "https://github.com/zhaochunqi/git-open.git", "feature-branch")
+	defer cleanup()
+
+	repo, err := getCurrentGitDirectory()
+	if err != nil {
+		t.Fatalf("getCurrentGitDirectory() error = %v", err)
+	}
+
+	got, err := getRemoteURL(repo)
+	if err != nil {
+		t.Errorf("getRemoteURL() error = %v", err)
+		return
+	}
+	expectedURL := "https://github.com/zhaochunqi/git-open.git"
+	if got != expectedURL {
+		t.Errorf("getRemoteURL() = %v, want %v", got, expectedURL)
+	}
+}
+
+func Test_getBranchName_Worktree(t *testing.T) {
+	_, cleanup := testhelper.SetupTestWorktree(t, "https://github.com/zhaochunqi/git-open.git", "feature-branch")
+	defer cleanup()
+
+	repo, err := getCurrentGitDirectory()
+	if err != nil {
+		t.Fatalf("getCurrentGitDirectory() error = %v", err)
+	}
+
+	got, err := getBranchName(repo)
+	if err != nil {
+		t.Errorf("getBranchName() error = %v", err)
+		return
+	}
+	expectedBranch := "feature-branch"
+	if got != expectedBranch {
+		t.Errorf("getBranchName() = %v, want %v", got, expectedBranch)
 	}
 }
 
