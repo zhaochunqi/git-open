@@ -2,6 +2,7 @@ package testhelper
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -103,6 +104,85 @@ func SetupTestRepo(t *testing.T, remoteURL string, branchName string) (string, f
 	}
 
 	return tmpDir, cleanup
+}
+
+func SetupTestWorktree(t *testing.T, remoteURL string, branchName string) (string, func()) {
+	t.Helper()
+
+	mainTmpDir, err := os.MkdirTemp("", "git-test-main")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	repo, err := git.PlainInit(mainTmpDir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if remoteURL != "" {
+		_, err = repo.CreateRemote(&config.RemoteConfig{
+			Name: "origin",
+			URLs: []string{remoteURL},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	w, err := repo.Worktree()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.WriteFile(filepath.Join(mainTmpDir, "test.txt"), []byte("hello"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = w.Add("test.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = w.Commit("initial commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Test User",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	worktreeBranch := "feature-branch"
+	if branchName != "" {
+		worktreeBranch = branchName
+	}
+
+	worktreeTmpDir := mainTmpDir + "-worktree"
+
+	cmd := exec.Command("git", "worktree", "add", "-b", worktreeBranch, worktreeTmpDir)
+	cmd.Dir = mainTmpDir
+	if err := cmd.Run(); err != nil {
+		os.RemoveAll(mainTmpDir)
+		t.Fatalf("failed to create worktree: %v", err)
+	}
+
+	currentDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Chdir(worktreeTmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	cleanup := func() {
+		os.Chdir(currentDir)
+		os.RemoveAll(worktreeTmpDir)
+		os.RemoveAll(mainTmpDir)
+	}
+
+	return worktreeTmpDir, cleanup
 }
 
 // SetupTestRepoWithoutCommit creates a temporary git repository without any commits.

@@ -20,9 +20,9 @@ const (
 
 // getCurrentGitDirectoryFunc is a variable that can be replaced for testing
 var getCurrentGitDirectoryFunc = func() (*git.Repository, error) {
-	// Open the Git repository in the current working directory or any parent directory
 	repo, err := git.PlainOpenWithOptions(".", &git.PlainOpenOptions{
-		DetectDotGit: true,
+		DetectDotGit:        true,
+		EnableDotGitCommonDir: true,
 	})
 	if err != nil {
 		return nil, err
