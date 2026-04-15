@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -81,7 +82,10 @@ func convertToWebURL(url string) string {
 var getBranchNameFunc = func(repo *git.Repository) (string, error) {
 	head, err := repo.Head()
 	if err == nil {
-		return head.Name().Short(), nil
+		if head.Name().IsBranch() {
+			return head.Name().Short(), nil
+		}
+		err = errors.New("detached HEAD")
 	}
 
 	ref, refErr := repo.Reference("HEAD", true)

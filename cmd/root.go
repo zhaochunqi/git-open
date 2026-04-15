@@ -38,6 +38,9 @@ and converts it to a web URL. The web URL is then printed to the console.`,
 
 		// Convert the remote URL to a web URL
 		webURL := convertToWebURL(remoteURL)
+		if webURL == "" {
+			return fmt.Errorf("unsupported remote URL format: %s", remoteURL)
+		}
 
 		// Open the web URL in the browser if the -o flag is provided
 		plain, _ := cmd.Flags().GetBool("plain")
