@@ -37,7 +37,7 @@ jobs:
           go test -race -coverprofile=coverage.txt -covermode=atomic $(go list ./... | grep -v internal/testhelper)
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt
