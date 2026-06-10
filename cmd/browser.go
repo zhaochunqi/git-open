@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os/exec"
 	"runtime"
+	"strings"
 )
 
 // ErrMockBrowser is used for testing browser errors
@@ -17,9 +18,24 @@ var getPlatform = func() string {
 	return runtime.GOOS
 }
 
+var commandRunner = func(name string, args ...string) error {
+	cmd := exec.Command(name, args...)
+	// Redirect stdout and stderr to /dev/null to suppress output
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	return cmd.Start()
+}
+
+var BrowserCommand string
+
 func openURLInBrowser(url string) error {
 	platform := getPlatform()
-	
+
+	customBrowser := strings.TrimSpace(BrowserCommand)
+	if customBrowser != "" {
+		return commandRunner(customBrowser, url)
+	}
+
 	// On Linux, use xdg-open with output redirection to suppress messages
 	if platform == "linux" {
 		return openWithXdgOpen(url)
@@ -37,27 +53,15 @@ func openURLInBrowser(url string) error {
 }
 
 func openWithXdgOpen(url string) error {
-	cmd := exec.Command("xdg-open", url)
-	// Redirect stdout and stderr to /dev/null to suppress output
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Start()
+	return commandRunner("xdg-open", url)
 }
 
 func openWithMacOSOpen(url string) error {
-	cmd := exec.Command("open", url)
-	// Redirect stdout and stderr to /dev/null to suppress output
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Start()
+	return commandRunner("open", url)
 }
 
 func openWithWindowsStart(url string) error {
-	cmd := exec.Command("cmd", "/c", "start", "", url)
-	// Redirect stdout and stderr to /dev/null to suppress output
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Start()
+	return commandRunner("cmd", "/c", "start", "", url)
 }
 
 func openURLInBrowserFunc(url string) error {

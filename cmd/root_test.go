@@ -164,21 +164,26 @@ func Test_Execute(t *testing.T) {
 
 func Test_initConfig(t *testing.T) {
 	tests := []struct {
-		name    string
-		wantErr bool
+		name            string
+		wantErr         bool
+		expectedBrowser string
 	}{
 		{
-			name:    "normal config",
-			wantErr: false,
+			name:            "normal config",
+			wantErr:         false,
+			expectedBrowser: "",
 		},
 		{
-			name:    "with config file",
-			wantErr: false,
+			name:            "with config file",
+			wantErr:         false,
+			expectedBrowser: "firefox",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("BROWSER", "")
+
 			// Setup logic moved directly into the test case
 			switch tt.name {
 			case "normal config":
@@ -218,13 +223,7 @@ func Test_initConfig(t *testing.T) {
 				})
 
 				// Create .git-open directory
-				configDir := filepath.Join(tmpHome, ".git-open")
-				if err := os.MkdirAll(configDir, 0755); err != nil {
-					t.Fatal(err)
-				}
-
-				// Create config file
-				configFile := filepath.Join(configDir, "config.yaml")
+				configFile := filepath.Join(tmpHome, ".git-open.yaml")
 				if err := os.WriteFile(configFile, []byte("browser: firefox"), 0644); err != nil {
 					t.Fatal(err)
 				}
@@ -236,6 +235,9 @@ func Test_initConfig(t *testing.T) {
 			}
 
 			initConfig()
+			if got := BrowserCommand; got != tt.expectedBrowser {
+				t.Errorf("BrowserCommand = %q, want %q", got, tt.expectedBrowser)
+			}
 		})
 	}
 }
@@ -301,7 +303,7 @@ func Test_rootCmd_ErrorHandling(t *testing.T) {
 					return errors.New("browser error")
 				}
 			},
-			wantErr: false, // Browser error doesn't cause command to fail, it just prints error
+			wantErr: true,
 		},
 	}
 

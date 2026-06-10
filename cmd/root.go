@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -42,6 +43,13 @@ and converts it to a web URL. The web URL is then printed to the console.`,
 			return fmt.Errorf("unsupported remote URL format: %s", remoteURL)
 		}
 
+		branchName, err := getBranchName(repo)
+		if err == nil && shouldAppendBranch(branchName) {
+			// For now, we only append branch name if it's not 'main' or 'master'.
+			// This can be improved later to fetch default branch from remote or allow configuration.
+			webURL = buildBranchURL(webURL, branchName, remoteURL)
+		}
+
 		// Open the web URL in the browser if the -o flag is provided
 		plain, _ := cmd.Flags().GetBool("plain")
 		if plain {
@@ -49,18 +57,9 @@ and converts it to a web URL. The web URL is then printed to the console.`,
 			return nil
 		}
 
-		branchName, err := getBranchName(repo)
-		if err == nil {
-			// For now, we only append branch name if it's not 'main' or 'master'.
-			// This can be improved later to fetch default branch from remote or allow configuration.
-			if branchName != "main" && branchName != "master" {
-				webURL = buildBranchURL(webURL, branchName, remoteURL)
-			}
-		}
-
 		err = openURLInBrowserFunc(webURL)
 		if err != nil {
-			fmt.Fprintf(cmd.OutOrStderr(), "Error opening URL in browser: %v\n", err)
+			return fmt.Errorf("error opening URL in browser: %w", err)
 		}
 		return nil
 	},
@@ -86,7 +85,6 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	rootCmd.Flags().BoolP("plain", "p", false, "Just print the web url without opening.")
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 }
@@ -113,4 +111,10 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
+
+	BrowserCommand = strings.TrimSpace(viper.GetString("browser"))
+}
+
+func shouldAppendBranch(branchName string) bool {
+	return branchName != "main" && branchName != "master"
 }

@@ -1,12 +1,29 @@
 package cmd
 
 import (
+	"os/exec"
 	"runtime"
 	"testing"
 )
 
 // mockOpenURL is a mock function for testing
 var mockOpenURL func(string) error
+
+func withNoopCommandRunner(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		commandRunner = func(name string, args ...string) error {
+			cmd := exec.Command(name, args...)
+			// Redirect stdout and stderr to /dev/null to suppress output
+			cmd.Stdout = nil
+			cmd.Stderr = nil
+			return cmd.Start()
+		}
+	})
+	commandRunner = func(name string, args ...string) error {
+		return nil
+	}
+}
 
 func Test_openURLInBrowser(t *testing.T) {
 	// Save original function
@@ -76,6 +93,7 @@ func Test_openWithXdgOpen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			withNoopCommandRunner(t)
 			err := openWithXdgOpen(tt.url)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("openWithXdgOpen() error = %v, wantErr %v", err, tt.wantErr)
@@ -104,6 +122,7 @@ func Test_openWithMacOSOpen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			withNoopCommandRunner(t)
 			err := openWithMacOSOpen(tt.url)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("openWithMacOSOpen() error = %v, wantErr %v", err, tt.wantErr)
@@ -139,6 +158,7 @@ func Test_openURLInBrowser_PlatformSpecific(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Test the actual platform-specific implementation
+			withNoopCommandRunner(t)
 			err := openURLInBrowser(tt.url)
 			if (err != nil) != tt.expectError {
 				t.Errorf("openURLInBrowser() error = %v, expectError %v", err, tt.expectError)
@@ -175,11 +195,12 @@ func Test_openURLInBrowser_AllPlatforms(t *testing.T) {
 			// Save the original runtime.GOOS
 			originalGOOS := runtime.GOOS
 			// We can't actually change runtime.GOOS, but we can test the functions directly
-			
+
 			switch tt.platform {
 			case "linux":
 				// Test openWithXdgOpen directly if not on Linux
 				if runtime.GOOS != "linux" {
+					withNoopCommandRunner(t)
 					err := openWithXdgOpen(tt.url)
 					// On non-Linux systems, this should fail as xdg-open doesn't exist
 					if err == nil {
@@ -189,6 +210,7 @@ func Test_openURLInBrowser_AllPlatforms(t *testing.T) {
 			case "darwin":
 				// Test openWithMacOSOpen directly if not on macOS
 				if runtime.GOOS != "darwin" {
+					withNoopCommandRunner(t)
 					err := openWithMacOSOpen(tt.url)
 					// On non-macOS systems, this should fail as open command might not exist
 					if err == nil {
@@ -198,6 +220,7 @@ func Test_openURLInBrowser_AllPlatforms(t *testing.T) {
 			case "windows":
 				// Test openWithWindowsStart directly if not on Windows
 				if runtime.GOOS != "windows" {
+					withNoopCommandRunner(t)
 					err := openWithWindowsStart(tt.url)
 					// On non-Windows systems, this should fail as cmd doesn't exist
 					if err == nil {
@@ -258,14 +281,14 @@ func Test_openURLInBrowser_UnsupportedPlatform(t *testing.T) {
 			wantErr:  false, // May fail in CI but function should be called
 		},
 		{
-			name:     "macOS platform", 
+			name:     "macOS platform",
 			platform: "darwin",
 			url:      "https://github.com/test/repo",
 			wantErr:  false, // May fail in CI but function should be called
 		},
 		{
 			name:     "Windows platform",
-			platform: "windows", 
+			platform: "windows",
 			url:      "https://github.com/test/repo",
 			wantErr:  false, // May fail in CI but function should be called
 		},
@@ -291,9 +314,10 @@ func Test_openURLInBrowser_UnsupportedPlatform(t *testing.T) {
 			getPlatform = func() string {
 				return tt.platform
 			}
+			withNoopCommandRunner(t)
 
 			err := openURLInBrowser(tt.url)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("openURLInBrowser() expected error for platform %s, got nil", tt.platform)

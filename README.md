@@ -39,17 +39,20 @@ Download the pre-compiled binary for your platform:
 
 ```sh
 # macOS (Intel)
-curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open-darwin-amd64 -o git-open
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Darwin_x86_64.tar.gz -o git-open.tar.gz
+tar -xzf git-open.tar.gz
 chmod +x git-open
 sudo mv git-open /usr/local/bin/
 
 # macOS (Apple Silicon)
-curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open-darwin-arm64 -o git-open
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Darwin_arm64.tar.gz -o git-open.tar.gz
+tar -xzf git-open.tar.gz
 chmod +x git-open
 sudo mv git-open /usr/local/bin/
 
 # Linux (x64)
-curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open-linux-amd64 -o git-open
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_x86_64.tar.gz -o git-open.tar.gz
+tar -xzf git-open.tar.gz
 chmod +x git-open
 sudo mv git-open /usr/local/bin/
 ```

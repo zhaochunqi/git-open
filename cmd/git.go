@@ -3,6 +3,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
@@ -22,7 +24,7 @@ const (
 // getCurrentGitDirectoryFunc is a variable that can be replaced for testing
 var getCurrentGitDirectoryFunc = func() (*git.Repository, error) {
 	repo, err := git.PlainOpenWithOptions(".", &git.PlainOpenOptions{
-		DetectDotGit:        true,
+		DetectDotGit:          true,
 		EnableDotGitCommonDir: true,
 	})
 	if err != nil {
@@ -56,26 +58,45 @@ func getRemoteURL(repo *git.Repository) (string, error) {
 	return getRemoteURLFunc(repo)
 }
 
-func convertToWebURL(url string) string {
-	// Validate URL format
-	if !strings.Contains(url, "://") && !strings.Contains(url, "@") {
+var scpRemoteURLPattern = regexp.MustCompile(`^(?:[^@]+@)?([^:]+):(.+)$`)
+
+func convertToWebURL(rawURL string) string {
+	raw := strings.TrimSpace(rawURL)
+	if raw == "" {
 		return ""
 	}
 
-	// If the URL starts with "https://" or "http://", remove the ".git" suffix
-	if strings.HasPrefix(url, "https://") || strings.HasPrefix(url, "http://") {
-		url = strings.TrimSuffix(url, ".git")
-	} else {
-		// Otherwise, assume it's an SSH URL
-		// Remove "ssh://" prefix
-		url = strings.TrimPrefix(url, "ssh://")
-		url = strings.Replace(url, ":", "/", 1)
-		// Replace "git@" or "ssh://git@" with "https://"
-		url = strings.Replace(url, "git@", "https://", 1)
-		// Remove the ".git" suffix
-		url = strings.TrimSuffix(url, ".git")
+	parsedURL, err := url.Parse(raw)
+	if err == nil && parsedURL.Host != "" && parsedURL.Scheme != "" {
+		// URL style: https://, http://, ssh:// or git+ssh://
+		path := strings.TrimPrefix(parsedURL.Path, "/")
+		if path == "" {
+			return ""
+		}
+
+		switch parsedURL.Scheme {
+		case "http", "https":
+			host := parsedURL.Host
+			return fmt.Sprintf("%s://%s/%s", parsedURL.Scheme, strings.TrimSuffix(host, "/"), strings.TrimSuffix(path, ".git"))
+		case "ssh", "git+ssh":
+			return fmt.Sprintf("https://%s/%s", parsedURL.Hostname(), strings.TrimSuffix(path, ".git"))
+		}
+
+		return ""
 	}
-	return url
+
+	matches := scpRemoteURLPattern.FindStringSubmatch(raw)
+	if len(matches) != 3 {
+		return ""
+	}
+
+	host := matches[1]
+	path := strings.TrimPrefix(matches[2], "/")
+	if host == "" || path == "" {
+		return ""
+	}
+
+	return fmt.Sprintf("https://%s/%s", host, strings.TrimSuffix(path, ".git"))
 }
 
 // getBranchNameFunc is a variable that can be replaced for testing
