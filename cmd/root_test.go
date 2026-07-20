@@ -163,6 +163,13 @@ func Test_Execute(t *testing.T) {
 }
 
 func Test_initConfig(t *testing.T) {
+	// Restore the global BrowserCommand so a config file with a browser
+	// setting does not leak into later tests and launch a real browser.
+	originalBrowserCommand := BrowserCommand
+	t.Cleanup(func() {
+		BrowserCommand = originalBrowserCommand
+	})
+
 	tests := []struct {
 		name            string
 		wantErr         bool
@@ -289,6 +296,12 @@ func Test_rootCmd_ErrorHandling(t *testing.T) {
 
 				getBranchNameFunc = func(repo *git.Repository) (string, error) {
 					return "", errors.New("branch name error")
+				}
+
+				// The command succeeds and opens the main page; mock the
+				// browser so the test does not launch a real one.
+				OpenURLInBrowser = func(url string) error {
+					return nil
 				}
 			},
 			wantErr: false, // Branch name error should not cause command to fail, opens main page
