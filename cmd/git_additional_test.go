@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -32,5 +34,44 @@ func Test_getBranchName_DetachedHEAD(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "error getting HEAD") {
 		t.Fatalf("getBranchName() error = %v, want message containing 'error getting HEAD'", err)
+	}
+}
+
+// Regression test: repositories that enable config extensions unknown to
+// go-git (e.g. extensions.worktreeConfig) must still open successfully.
+func Test_resolveWebURL_WorktreeConfigExtension(t *testing.T) {
+	tmpDir, cleanup := testhelper.SetupTestRepo(t, "https://github.com/zhaochunqi/git-open.git", "main")
+	defer cleanup()
+
+	configPath := filepath.Join(tmpDir, ".git", "config")
+	f, err := os.OpenFile(configPath, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		t.Fatalf("open config failed: %v", err)
+	}
+	if _, err := f.WriteString("[extensions]\n\tworktreeConfig = true\n"); err != nil {
+		f.Close()
+		t.Fatalf("append extensions section failed: %v", err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatalf("close config failed: %v", err)
+	}
+
+	repo, remoteURL, webURL, err := resolveWebURL()
+	if err != nil {
+		t.Fatalf("resolveWebURL() error = %v", err)
+	}
+	if remoteURL != "https://github.com/zhaochunqi/git-open.git" {
+		t.Errorf("resolveWebURL() remoteURL = %q, want %q", remoteURL, "https://github.com/zhaochunqi/git-open.git")
+	}
+	if webURL != "https://github.com/zhaochunqi/git-open" {
+		t.Errorf("resolveWebURL() webURL = %q, want %q", webURL, "https://github.com/zhaochunqi/git-open")
+	}
+
+	branch, err := getBranchName(repo)
+	if err != nil {
+		t.Fatalf("getBranchName() error = %v", err)
+	}
+	if branch != "main" {
+		t.Errorf("getBranchName() = %q, want %q", branch, "main")
 	}
 }
