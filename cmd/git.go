@@ -58,6 +58,27 @@ func getRemoteURL(repo *git.Repository) (string, error) {
 	return getRemoteURLFunc(repo)
 }
 
+// resolveWebURL returns the repository, its remote URL, and the converted web URL
+// for the Git repository in the current working directory.
+func resolveWebURL() (*git.Repository, string, string, error) {
+	repo, err := getCurrentGitDirectory()
+	if err != nil {
+		return nil, "", "", fmt.Errorf("error getting git directory: %w", err)
+	}
+
+	remoteURL, err := getRemoteURL(repo)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("error getting remote URL: %w", err)
+	}
+
+	webURL := convertToWebURL(remoteURL)
+	if webURL == "" {
+		return nil, "", "", fmt.Errorf("unsupported remote URL format: %s", remoteURL)
+	}
+
+	return repo, remoteURL, webURL, nil
+}
+
 var scpRemoteURLPattern = regexp.MustCompile(`^(?:[^@]+@)?([^:]+):(.+)$`)
 
 func convertToWebURL(rawURL string) string {
