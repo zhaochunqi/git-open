@@ -1,6 +1,6 @@
 # Git Open
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/zhaochunqi/git-open)](https://goreportcard.com/report/github.com/zhaochunqi/git-open) [![codecov](https://codecov.io/github.com/zhaochunqi/git-open/graph/badge.svg?token=TXC9ZOSHFT)](https://codecov.io/github.com/zhaochunqi/git-open)
+[![codecov](https://codecov.io/github/zhaochunqi/git-open/graph/badge.svg?token=TXC9ZOSHFT)](https://codecov.io/github/zhaochunqi/git-open)
 
 ## 🚀 Quick Install
 
