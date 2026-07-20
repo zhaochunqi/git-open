@@ -73,6 +73,10 @@ Navigate to your project's directory and run the following command:
 
 This will open your repository in the default web browser.
 
+To print the repository name (e.g. `github.com/zhaochunqi/git-open`):
+
+`git-open repo`
+
 ## Testing
 
 This project follows Go testing best practices. Here's how to run the tests:

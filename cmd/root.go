@@ -25,22 +25,10 @@ and converts it to a web URL. The web URL is then printed to the console.`,
 			fmt.Fprintf(cmd.OutOrStdout(), "Build Date: %s\n", BuildDate)
 			return nil
 		}
-		// Get the Git repository in the current working directory
-		repo, err := getCurrentGitDirectory()
+		// Get the repository, its remote URL, and the converted web URL
+		repo, remoteURL, webURL, err := resolveWebURL()
 		if err != nil {
-			return fmt.Errorf("error getting git directory: %w", err)
-		}
-
-		// Get the remote URL of the Git repository
-		remoteURL, err := getRemoteURL(repo)
-		if err != nil {
-			return fmt.Errorf("error getting remote URL: %w", err)
-		}
-
-		// Convert the remote URL to a web URL
-		webURL := convertToWebURL(remoteURL)
-		if webURL == "" {
-			return fmt.Errorf("unsupported remote URL format: %s", remoteURL)
+			return err
 		}
 
 		branchName, err := getBranchName(repo)
