@@ -57,6 +57,32 @@ chmod +x git-open
 sudo mv git-open /usr/local/bin/
 ```
 
+
+### Nix
+
+Using flakes (recommended):
+
+```sh
+# one-shot run without installing
+nix run github:zhaochunqi/git-open
+
+# install into your profile
+nix profile install github:zhaochunqi/git-open
+
+# or pin a release tag
+nix profile install github:zhaochunqi/git-open/v2.4.2
+```
+
+From a local checkout:
+
+```sh
+nix build
+./result/bin/git-open version
+
+# development shell with Go toolchain
+nix develop
+```
+
 ### mise with ubi
 
 For users who prefer mise for version management:

@@ -26,3 +26,6 @@ dist/
 
 # windsurf rules
 .windsurfrules
+
+# Nix build result symlink
+result
