@@ -103,6 +103,12 @@ To print the repository name (e.g. `github.com/zhaochunqi/git-open`):
 
 `git-open repo`
 
+To run as if started in a different directory (e.g. from a script that isn't inside the repo):
+
+`git-open -C /path/to/repo repo`
+
+The `-C` flag mirrors `git -C`: it may be given multiple times, and a non-absolute path is relative to the previous one.
+
 ## Testing
 
 This project follows Go testing best practices. Here's how to run the tests:

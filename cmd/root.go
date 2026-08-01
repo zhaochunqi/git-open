@@ -10,6 +10,7 @@ import (
 )
 
 var cfgFile string
+var chdirPaths []string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -17,6 +18,14 @@ var rootCmd = &cobra.Command{
 	Short: "Print the web URL of the Git repository",
 	Long: `This application retrieves the remote URL of the Git repository in the current working directory
 and converts it to a web URL. The web URL is then printed to the console.`,
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		for _, path := range chdirPaths {
+			if err := os.Chdir(path); err != nil {
+				return fmt.Errorf("error changing directory to %q: %w", path, err)
+			}
+		}
+		return nil
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		version, _ := cmd.Flags().GetBool("version")
 		if version {
@@ -70,6 +79,7 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.git-open.yaml)")
+	rootCmd.PersistentFlags().StringArrayVarP(&chdirPaths, "chdir", "C", nil, "Run as if git-open was started in <path> instead of the current working directory. May be given multiple times; a non-absolute <path> is relative to the previous one.")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
