@@ -20,10 +20,10 @@ jobs:
           fetch-depth: 0
 
       - name: Set up mise
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3
 
       - name: Cache Go Modules
-        uses: actions/cache@v5
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: |
             ~/.cache/go-build
@@ -37,7 +37,7 @@ jobs:
           go test -race -coverprofile=coverage.txt -covermode=atomic $(go list ./... | grep -v internal/testhelper)
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt
