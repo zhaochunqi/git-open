@@ -83,12 +83,27 @@ nix build
 nix develop
 ```
 
-### mise with ubi
+### mise
 
 For users who prefer mise for version management:
 
 ```sh
-mise use -g ubi:zhaochunqi/git-open
+# install the latest release globally
+mise use -g github:zhaochunqi/git-open
+
+# or pin a specific release
+mise use -g github:zhaochunqi/git-open@2.5.0
+```
+
+This uses mise's [`github` backend](https://mise.jdx.dev/dev-tools/backends/github.html), which
+installs pre-built binaries straight from GitHub Releases. The older
+`ubi:zhaochunqi/git-open` syntax still works but is
+[deprecated](https://mise.jdx.dev/dev-tools/backends/ubi.html) — migrate by replacing `ubi:` with
+`github:` in your existing config. The equivalent `mise.toml` entry is:
+
+```toml
+[tools]
+"github:zhaochunqi/git-open" = "latest"
 ```
 
 ## Usage
