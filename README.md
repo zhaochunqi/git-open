@@ -2,40 +2,61 @@
 
 [![codecov](https://codecov.io/github/zhaochunqi/git-open/graph/badge.svg?token=TXC9ZOSHFT)](https://codecov.io/github/zhaochunqi/git-open)
 
+**macOS · Linux · Windows · WSL** — a single static binary that opens the current
+Git repository in your browser, with no runtime dependencies and no configuration.
+
 ## 🚀 Quick Install
 
-### Recommended (macOS)
-```sh
-brew install --cask zhaochunqi/tap/git-open
-```
+Prebuilt binaries are published for every supported platform. Pick the asset that
+matches your machine and follow [Installation Options](#installation-options):
 
+| Platform | Release asset |
+| --- | --- |
+| macOS (Intel / Apple Silicon) | `git-open_Darwin_x86_64.tar.gz` / `git-open_Darwin_arm64.tar.gz` |
+| Linux (x86_64 / arm64) | `git-open_Linux_x86_64.tar.gz` / `git-open_Linux_arm64.tar.gz` |
+| Windows (x86_64 / arm64) | `git-open_Windows_x86_64.zip` / `git-open_Windows_arm64.zip` |
+| WSL (WSL1 / WSL2) | install the Linux binary inside your distro — see [WSL](#wsl-windows-subsystem-for-linux) |
 
-
----
-
-A Go-based tool that allows you to open the current repository in a web browser with a single command. It's a simple yet efficient solution for quickly accessing your project's online resources.
+macOS users can also install with Homebrew
+(`brew install --cask zhaochunqi/tap/git-open`); that is a macOS-only convenience,
+while the prebuilt binaries above cover every platform.
 
 ## Features
 
-* Easy Access: Open your repository in a web browser with a single command.
-* Cross-Platform: Built using Go, the tool is compatible with various operating systems.
-* Lightweight: Minimal dependencies and efficient code ensure the tool runs smoothly.
+* **Cross-platform by design** — macOS (Intel / Apple Silicon), Linux (x86_64 / arm64)
+  and Windows (x86_64 / arm64), plus WSL.
+* **WSL aware** — inside WSL the URL is handed to your Windows default browser, so no
+  WSLg, X server or `xdg-open` is required.
+* **Branch aware** — opens the current branch, while `main` / `master` fall back to the
+  repository root.
+* **Configurable browser** — `~/.git-open.yaml` (`browser: ...`) or the `BROWSER`
+  environment variable.
+* **`git -C` style `-C` flag** — run as if started in another directory.
+* **Lightweight** — one static binary per platform and no runtime dependencies.
+
+## Platform Support
+
+| Platform | Status | How the URL is opened |
+| --- | --- | --- |
+| macOS | supported | `open` |
+| Linux | supported | `xdg-open` |
+| Windows | supported | `cmd /c start` |
+| WSL (WSL1 / WSL2) | supported | `xdg-open` → `wslview` → `explorer.exe` → `powershell.exe` → `cmd.exe` |
+| Others (FreeBSD, Plan 9, ...) | not supported | exits with `unsupported platform: <goos>` |
+
+WSL is detected from `WSL_DISTRO_NAME` / `WSL_INTEROP`, with the `/proc/version`
+kernel string (`microsoft`) as a fallback. Any platform can be overridden with the
+`browser` option — see [Configuration](#configuration) and
+[WSL](#wsl-windows-subsystem-for-linux).
 
 ## Installation Options
 
-There are multiple ways to install the tool:
+Every release ships prebuilt binaries for all supported platforms; package-manager
+recipes are available for the platforms that have them.
 
-### Homebrew (macOS) - Recommended
+### Prebuilt binaries (recommended, all platforms)
 
-The easiest method for macOS users with automatic updates:
-
-```sh
-brew install --cask zhaochunqi/tap/git-open
-```
-
-### GitHub Releases
-
-Download the pre-compiled binary for your platform:
+Download the asset for your platform:
 
 ```sh
 # macOS (Intel)
@@ -50,13 +71,73 @@ tar -xzf git-open.tar.gz
 chmod +x git-open
 sudo mv git-open /usr/local/bin/
 
-# Linux (x64)
+# Linux (x86_64)
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_x86_64.tar.gz -o git-open.tar.gz
+tar -xzf git-open.tar.gz
+chmod +x git-open
+sudo mv git-open /usr/local/bin/
+
+# Linux (arm64)
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_arm64.tar.gz -o git-open.tar.gz
+tar -xzf git-open.tar.gz
+chmod +x git-open
+sudo mv git-open /usr/local/bin/
+```
+
+On Windows, download the zip from the same release and add the extracted folder to
+your `PATH`:
+
+```powershell
+Invoke-WebRequest -Uri https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Windows_x86_64.zip -OutFile git-open.zip
+Expand-Archive -Path git-open.zip -DestinationPath "$env:LOCALAPPDATA\git-open"
+# then add %LOCALAPPDATA%\git-open to your PATH
+```
+
+Asset names always follow `git-open_<OS>_<arch>`: `Darwin_arm64` for Apple Silicon,
+`Linux_arm64` for arm64 Linux, `Windows_arm64` for Windows on ARM.
+
+### WSL (Windows Subsystem for Linux)
+
+Install the Linux binary inside your distribution — WSL is a supported platform, not
+a workaround:
+
+```sh
 curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_x86_64.tar.gz -o git-open.tar.gz
 tar -xzf git-open.tar.gz
 chmod +x git-open
 sudo mv git-open /usr/local/bin/
 ```
 
+That is all the setup there is: WSL's own PATH interop exposes `explorer.exe`,
+`powershell.exe` and `cmd.exe`, so `git open` hands the URL to your Windows default
+browser. The [`wslu`](https://github.com/wslutilities/wslu) package (`wslview`) is
+optional, and no WSLg, X server or `xdg-open` is needed. See
+[WSL](#wsl-windows-subsystem-for-linux) for the detection rules and for overriding the
+opener.
+
+
+### mise
+
+For users who prefer mise for version management (works on macOS, Linux and WSL):
+
+```sh
+# install the latest release globally
+mise use -g github:zhaochunqi/git-open
+
+# or pin a specific release
+mise use -g github:zhaochunqi/git-open@2.6.0
+```
+
+This uses mise's [`github` backend](https://mise.jdx.dev/dev-tools/backends/github.html), which
+installs pre-built binaries straight from GitHub Releases. The older
+`ubi:zhaochunqi/git-open` syntax still works but is
+[deprecated](https://mise.jdx.dev/dev-tools/backends/ubi.html) — migrate by replacing `ubi:` with
+`github:` in your existing config. The equivalent `mise.toml` entry is:
+
+```toml
+[tools]
+"github:zhaochunqi/git-open" = "latest"
+```
 
 ### Nix
 
@@ -70,7 +151,7 @@ nix run github:zhaochunqi/git-open
 nix profile install github:zhaochunqi/git-open
 
 # or pin a release tag
-nix profile install github:zhaochunqi/git-open/v2.4.2
+nix profile install github:zhaochunqi/git-open/v2.6.0
 ```
 
 From a local checkout:
@@ -83,27 +164,14 @@ nix build
 nix develop
 ```
 
-### mise
+### Homebrew (macOS only)
 
-For users who prefer mise for version management:
+A convenience for macOS users who want Homebrew-managed upgrades. It is not the
+recommended path for other platforms — the [prebuilt binaries](#prebuilt-binaries-recommended-all-platforms)
+cover macOS, Linux, Windows and WSL:
 
 ```sh
-# install the latest release globally
-mise use -g github:zhaochunqi/git-open
-
-# or pin a specific release
-mise use -g github:zhaochunqi/git-open@2.5.0
-```
-
-This uses mise's [`github` backend](https://mise.jdx.dev/dev-tools/backends/github.html), which
-installs pre-built binaries straight from GitHub Releases. The older
-`ubi:zhaochunqi/git-open` syntax still works but is
-[deprecated](https://mise.jdx.dev/dev-tools/backends/ubi.html) — migrate by replacing `ubi:` with
-`github:` in your existing config. The equivalent `mise.toml` entry is:
-
-```toml
-[tools]
-"github:zhaochunqi/git-open" = "latest"
+brew install --cask zhaochunqi/tap/git-open
 ```
 
 ## Usage
@@ -123,6 +191,64 @@ To run as if started in a different directory (e.g. from a script that isn't ins
 `git-open -C /path/to/repo repo`
 
 The `-C` flag mirrors `git -C`: it may be given multiple times, and a non-absolute path is relative to the previous one.
+
+To print the URL instead of opening a browser:
+
+`git-open --plain` (or `-p`)
+
+## WSL (Windows Subsystem for Linux)
+
+WSL distributions normally have no X server, so `xdg-open` is not installed. When
+running under WSL, `git-open` tries these openers in order and uses the first one
+available:
+
+| Order | Opener | Notes |
+| --- | --- | --- |
+| 1 | `xdg-open` | used when WSLg provides it, so your Linux default browser wins |
+| 2 | `wslview` | the [wslu](https://github.com/wslutilities/wslu) package, optional |
+| 3 | `explorer.exe` | Windows default browser, no extra setup needed |
+| 4 | `powershell.exe` | URL passed as a PowerShell single-quoted literal |
+| 5 | `cmd.exe` | URL passed as a quoted argument to `start` |
+
+WSL is detected from `WSL_DISTRO_NAME` / `WSL_INTEROP`; when neither is set, the
+kernel string in `/proc/version` is checked for `microsoft`, which both WSL1 and WSL2
+report. Everything else is ordinary Linux behaviour, so installing the Linux binary
+is all the setup required.
+
+If none of the openers is available, `git-open` fails with a pointer to the fix:
+install `wslu` (`sudo apt install wslu`), enable Windows executable interop, or
+configure a browser explicitly (see [Configuration](#configuration)):
+
+```yaml
+browser: wslview
+```
+
+A full Windows path works too, which is useful when you want a browser other than the
+Windows default one:
+
+```yaml
+browser: /mnt/c/Program Files/Google/Chrome/Application/chrome.exe
+```
+
+## Configuration
+
+`git-open` reads `~/.git-open.yaml` (point it elsewhere with `--config`):
+
+```yaml
+# Command used to open the URL, executed with the URL as its only argument.
+browser: explorer.exe
+```
+
+The `BROWSER` environment variable is honoured as well, so a one-off override needs no
+config file:
+
+```sh
+BROWSER=wslview git open
+```
+
+When `browser` is set it takes precedence over the platform defaults listed in
+[Platform Support](#platform-support), which makes it the escape hatch for any
+platform-specific behaviour.
 
 ## Testing
 
@@ -149,7 +275,7 @@ The tests are organized as follows:
 - Integration tests for git repository operations
 - Benchmark tests for performance-critical functions
 
-The test suite uses a custom test utility package (`internal/testutil`) that provides common testing functions and fixtures.
+The test suite uses a custom test utility package (`internal/testhelper`) that provides common testing functions and fixtures.
 
 ### Test Coverage
 
@@ -165,7 +291,7 @@ When adding new features, please ensure:
 1. Add corresponding test cases
 2. Include both positive and negative test scenarios
 3. Add benchmark tests for performance-sensitive functions
-4. Use the provided test utilities from `internal/testutil`
+4. Use the provided test utilities from `internal/testhelper`
 
 ## Contributing
 

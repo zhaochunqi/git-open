@@ -17,7 +17,7 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
 
       # Keep in sync with the latest release tag when packaging.
-      packageVersion = "2.4.2";
+      packageVersion = "2.6.0";
     in
     {
       packages = forAllSystems (
