@@ -7,8 +7,21 @@ Git repository in your browser, with no runtime dependencies and no configuratio
 
 ## 🚀 Quick Install
 
-Prebuilt binaries are published for every supported platform. Pick the asset that
-matches your machine and follow [Installation Options](#installation-options):
+The fastest way is a package manager:
+
+```sh
+# mise (macOS · Linux · WSL)
+mise use -g github:zhaochunqi/git-open
+
+# Nix
+nix profile install github:zhaochunqi/git-open
+
+# Homebrew (macOS)
+brew install --cask zhaochunqi/tap/git-open
+```
+
+Prebuilt binaries are published for every supported platform as well. Pick the asset
+that matches your machine and follow [Installation Options](#installation-options):
 
 | Platform | Release asset |
 | --- | --- |
@@ -16,10 +29,6 @@ matches your machine and follow [Installation Options](#installation-options):
 | Linux (x86_64 / arm64) | `git-open_Linux_x86_64.tar.gz` / `git-open_Linux_arm64.tar.gz` |
 | Windows (x86_64 / arm64) | `git-open_Windows_x86_64.zip` / `git-open_Windows_arm64.zip` |
 | WSL (WSL1 / WSL2) | install the Linux binary inside your distro — see [WSL](#wsl-windows-subsystem-for-linux) |
-
-macOS users can also install with Homebrew
-(`brew install --cask zhaochunqi/tap/git-open`); that is a macOS-only convenience,
-while the prebuilt binaries above cover every platform.
 
 ## Features
 
@@ -51,70 +60,8 @@ kernel string (`microsoft`) as a fallback. Any platform can be overridden with t
 
 ## Installation Options
 
-Every release ships prebuilt binaries for all supported platforms; package-manager
-recipes are available for the platforms that have them.
-
-### Prebuilt binaries (recommended, all platforms)
-
-Download the asset for your platform:
-
-```sh
-# macOS (Intel)
-curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Darwin_x86_64.tar.gz -o git-open.tar.gz
-tar -xzf git-open.tar.gz
-chmod +x git-open
-sudo mv git-open /usr/local/bin/
-
-# macOS (Apple Silicon)
-curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Darwin_arm64.tar.gz -o git-open.tar.gz
-tar -xzf git-open.tar.gz
-chmod +x git-open
-sudo mv git-open /usr/local/bin/
-
-# Linux (x86_64)
-curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_x86_64.tar.gz -o git-open.tar.gz
-tar -xzf git-open.tar.gz
-chmod +x git-open
-sudo mv git-open /usr/local/bin/
-
-# Linux (arm64)
-curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_arm64.tar.gz -o git-open.tar.gz
-tar -xzf git-open.tar.gz
-chmod +x git-open
-sudo mv git-open /usr/local/bin/
-```
-
-On Windows, download the zip from the same release and add the extracted folder to
-your `PATH`:
-
-```powershell
-Invoke-WebRequest -Uri https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Windows_x86_64.zip -OutFile git-open.zip
-Expand-Archive -Path git-open.zip -DestinationPath "$env:LOCALAPPDATA\git-open"
-# then add %LOCALAPPDATA%\git-open to your PATH
-```
-
-Asset names always follow `git-open_<OS>_<arch>`: `Darwin_arm64` for Apple Silicon,
-`Linux_arm64` for arm64 Linux, `Windows_arm64` for Windows on ARM.
-
-### WSL (Windows Subsystem for Linux)
-
-Install the Linux binary inside your distribution — WSL is a supported platform, not
-a workaround:
-
-```sh
-curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_x86_64.tar.gz -o git-open.tar.gz
-tar -xzf git-open.tar.gz
-chmod +x git-open
-sudo mv git-open /usr/local/bin/
-```
-
-That is all the setup there is: WSL's own PATH interop exposes `explorer.exe`,
-`powershell.exe` and `cmd.exe`, so `git open` hands the URL to your Windows default
-browser. The [`wslu`](https://github.com/wslutilities/wslu) package (`wslview`) is
-optional, and no WSLg, X server or `xdg-open` is needed. See
-[WSL](#wsl-windows-subsystem-for-linux) for the detection rules and for overriding the
-opener.
-
+Package managers are the easiest route; use the prebuilt binaries if you would
+rather install manually.
 
 ### mise
 
@@ -166,13 +113,59 @@ nix develop
 
 ### Homebrew (macOS only)
 
-A convenience for macOS users who want Homebrew-managed upgrades. It is not the
-recommended path for other platforms — the [prebuilt binaries](#prebuilt-binaries-recommended-all-platforms)
-cover macOS, Linux, Windows and WSL:
+This tap ships a **cask**, and Homebrew casks only work on macOS. (Homebrew itself
+also runs on Linux, but without cask support.) On Linux, use mise, Nix or the
+prebuilt binary instead.
 
 ```sh
 brew install --cask zhaochunqi/tap/git-open
 ```
+
+### Prebuilt binaries (manual, all platforms)
+
+Download the asset for your platform:
+
+```sh
+# macOS (Intel)
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Darwin_x86_64.tar.gz -o git-open.tar.gz
+tar -xzf git-open.tar.gz
+chmod +x git-open
+sudo mv git-open /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Darwin_arm64.tar.gz -o git-open.tar.gz
+tar -xzf git-open.tar.gz
+chmod +x git-open
+sudo mv git-open /usr/local/bin/
+
+# Linux (x86_64)
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_x86_64.tar.gz -o git-open.tar.gz
+tar -xzf git-open.tar.gz
+chmod +x git-open
+sudo mv git-open /usr/local/bin/
+
+# Linux (arm64)
+curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_arm64.tar.gz -o git-open.tar.gz
+tar -xzf git-open.tar.gz
+chmod +x git-open
+sudo mv git-open /usr/local/bin/
+```
+
+On Windows, download the zip from the same release and add the extracted folder to
+your `PATH`:
+
+```powershell
+Invoke-WebRequest -Uri https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Windows_x86_64.zip -OutFile git-open.zip
+Expand-Archive -Path git-open.zip -DestinationPath "$env:LOCALAPPDATA\git-open"
+# then add %LOCALAPPDATA%\git-open to your PATH
+```
+
+Asset names always follow `git-open_<OS>_<arch>`: `Darwin_arm64` for Apple Silicon,
+`Linux_arm64` for arm64 Linux, `Windows_arm64` for Windows on ARM.
+
+WSL users install the same Linux binary inside their distribution — there is no
+separate package. Everything else is handled automatically; see
+[WSL](#wsl-windows-subsystem-for-linux) for the details.
 
 ## Usage
 
