@@ -14,7 +14,8 @@ Git repository in your browser, with no runtime dependencies and no configuratio
 >
 > Run it inside any Git repository and that repository opens in your browser —
 > on your current branch. That's the whole workflow; `git-open` works too, since
-> git treats it as the `open` subcommand.
+> git treats it as the `open` subcommand. Hosts without a known branch URL still
+> open the repository root, and any host can be taught one in the config file.
 
 ## 🚀 Quick Install
 
@@ -56,6 +57,9 @@ that matches your machine and follow [Installation Options](#installation-option
   WSLg, X server or `xdg-open` is required.
 * **Branch aware** — opens the current branch, while `main` / `master` fall back to the
   repository root.
+* **Host aware, vendor neutral** — GitHub, GitLab, Bitbucket, Gitea/Forgejo/Codeberg,
+  SourceHut and Azure DevOps are recognised by hostname, and any other host can be added
+  in the config file. Unknown hosts open the repository root instead of a guessed URL.
 * **Configurable browser** — `~/.config/git-open/config.yaml` (`browser: ...`),
   following the XDG Base Directory spec, or the `BROWSER` environment variable.
 * **`git -C` style `-C` flag** — run as if started in another directory.
@@ -290,6 +294,44 @@ BROWSER=wslview git open
 When `browser` is set it takes precedence over the platform defaults listed in
 [Platform Support](#platform-support), which makes it the escape hatch for any
 platform-specific behaviour.
+
+### Repository hosts
+
+`git-open` links to the current branch with the path used by the hosting service. The
+host is taken from the remote URL, and the built-in rules cover:
+
+| Host | Branch URL suffix |
+| --- | --- |
+| `github.com` | `/tree/<branch>` |
+| `gitlab.com` | `/-/tree/<branch>` |
+| `bitbucket.org` | `/src/<branch>` |
+| `codeberg.org`, `gitea.com` | `/src/branch/<branch>` |
+| `git.sr.ht` | `/tree/<branch>` |
+| `dev.azure.com`, `*.visualstudio.com` | `?version=GB<branch>` |
+| any hostname with a `gitlab` label | `/-/tree/<branch>` |
+| any hostname with a `gitea` or `forgejo` label | `/src/branch/<branch>` |
+
+Self-hosted instances whose hostname does not hint at the software (including GitHub
+Enterprise and Azure DevOps Server) are not in the table. For those, and to override a
+built-in rule, add a `hosts` section to the config file. The key is the exact hostname
+(not the whole remote URL), and the value is the URL suffix appended to the repository
+root; `{branch}` is replaced with the branch name:
+
+```yaml
+hosts:
+  gitlab.example.com: "/-/tree/{branch}"
+  gitea.example.com:
+    branch: "/src/branch/{branch}"
+  github.example.com: "/tree/{branch}"
+```
+
+When a host has no rule and no override, `git-open` opens the repository root rather than
+guessing a branch URL that would 404. An empty value disables branch links for a host:
+
+```yaml
+hosts:
+  legacy.example.com: ""
+```
 
 ## Testing
 
