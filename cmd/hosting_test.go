@@ -1,0 +1,445 @@
+package cmd
+
+import (
+	"bytes"
+	"testing"
+
+	"github.com/spf13/cobra"
+	"github.com/zhaochunqi/git-open/internal/testhelper"
+)
+
+// withHostBranchPaths swaps the global override map for the duration of a
+// test and restores it afterwards, keeping tests independent of each other.
+func withHostBranchPaths(t *testing.T, paths map[string]string) {
+	t.Helper()
+	original := HostBranchPaths
+	HostBranchPaths = paths
+	t.Cleanup(func() { HostBranchPaths = original })
+}
+
+func TestHostingServiceString(t *testing.T) {
+	tests := []struct {
+		service HostingService
+		want    string
+	}{
+		{Unknown, "unknown"},
+		{GitHub, "github"},
+		{GitLab, "gitlab"},
+		{Bitbucket, "bitbucket"},
+		{Gitea, "gitea"},
+		{SourceHut, "sourcehut"},
+		{AzureDevOps, "azure-devops"},
+		{HostingService(99), "unknown"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.service.String(); got != tt.want {
+				t.Errorf("HostingService(%d).String() = %q, want %q", tt.service, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_hostFromRemoteURL(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+		want string
+	}{
+		{"https", "https://github.com/user/repo.git", "github.com"},
+		{"http", "http://gitlab.com/user/repo", "gitlab.com"},
+		{"ssh scheme", "ssh://git@github.com/user/repo.git", "github.com"},
+		{"ssh scheme with port", "ssh://git@github.com:22/user/repo.git", "github.com"},
+		{"git+ssh scheme", "git+ssh://git@gitlab.com/user/repo.git", "gitlab.com"},
+		{"scp with user", "git@github.com:user/repo.git", "github.com"},
+		{"scp without user", "github.com:user/repo.git", "github.com"},
+		{"scp with port-less custom host", "git@gitlab.example.com:group/sub/repo.git", "gitlab.example.com"},
+		{"surrounding whitespace", "  https://github.com/user/repo.git  ", "github.com"},
+		{"hostname lowercased", "https://GitHub.COM/User/Repo.git", "github.com"},
+		{"no path", "https://example.com", "example.com"},
+		{"empty", "", ""},
+		{"blank", "   ", ""},
+		{"no host", "invalid-remote", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := hostFromRemoteURL(tt.url); got != tt.want {
+				t.Errorf("hostFromRemoteURL(%q) = %q, want %q", tt.url, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_hostHasLabel(t *testing.T) {
+	tests := []struct {
+		hostname string
+		label    string
+		want     bool
+	}{
+		{"gitlab.example.com", "gitlab", true},
+		{"code.gitlab.example.com", "gitlab", true},
+		{"example.com", "gitlab", false},
+		{"notgitlab.com", "gitlab", false},
+		{"mygitlab.com", "gitlab", false},
+		{"gitlab.com", "gitlab", true},
+		{"", "gitlab", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.hostname+"/"+tt.label, func(t *testing.T) {
+			if got := hostHasLabel(tt.hostname, tt.label); got != tt.want {
+				t.Errorf("hostHasLabel(%q, %q) = %v, want %v", tt.hostname, tt.label, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getHostingService(t *testing.T) {
+	tests := []struct {
+		name      string
+		remoteURL string
+		want      HostingService
+	}{
+		{"github https", "https://github.com/user/repo.git", GitHub},
+		{"github scp", "git@github.com:user/repo.git", GitHub},
+		{"gitlab", "https://gitlab.com/user/repo.git", GitLab},
+		{"bitbucket", "https://bitbucket.org/user/repo.git", Bitbucket},
+		{"codeberg", "https://codeberg.org/user/repo.git", Gitea},
+		{"gitea", "https://gitea.com/user/repo.git", Gitea},
+		{"sourcehut", "https://git.sr.ht/~user/repo", SourceHut},
+		{"azure devops", "https://dev.azure.com/org/project/_git/repo", AzureDevOps},
+		{"visual studio suffix", "https://org.visualstudio.com/project/_git/repo", AzureDevOps},
+		{"self-hosted gitlab", "https://gitlab.example.com/group/repo.git", GitLab},
+		{"nested gitlab label", "https://code.gitlab.example.com/group/repo.git", GitLab},
+		{"self-hosted gitea", "git@gitea.example.com:user/repo.git", Gitea},
+		{"self-hosted forgejo", "https://forgejo.example.com/user/repo.git", Gitea},
+		// Regression: the old implementation used strings.Contains on the whole
+		// remote URL, so a path mentioning github.com was misclassified.
+		{"path contains github.com", "https://git.example.com/mirror/github.com.git", Unknown},
+		// Regression: a hostname merely containing "gitlab" must not match.
+		{"hostname contains gitlab", "https://notgitlab.com/user/repo.git", Unknown},
+		{"github-like hostname", "https://github.company.com/user/repo.git", Unknown},
+		{"arbitrary enterprise host", "https://git.mycorp.com/user/repo.git", Unknown},
+		{"empty", "", Unknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getHostingService(tt.remoteURL); got != tt.want {
+				t.Errorf("getHostingService(%q) = %v, want %v", tt.remoteURL, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_branchPathForHost(t *testing.T) {
+	tests := []struct {
+		name     string
+		hostname string
+		override map[string]string
+		want     string
+	}{
+		{"github", "github.com", nil, "/tree/{branch}"},
+		{"gitlab", "gitlab.com", nil, "/-/tree/{branch}"},
+		{"bitbucket", "bitbucket.org", nil, "/src/{branch}"},
+		{"codeberg", "codeberg.org", nil, "/src/branch/{branch}"},
+		{"sourcehut", "git.sr.ht", nil, "/tree/{branch}"},
+		{"azure devops", "dev.azure.com", nil, "?version=GB{branch}"},
+		{"self-hosted gitlab", "gitlab.example.com", nil, "/-/tree/{branch}"},
+		{"unknown host", "example.com", nil, ""},
+		{"empty host", "", nil, ""},
+		{"override wins over built-in", "github.com", map[string]string{"github.com": "/custom/{branch}"}, "/custom/{branch}"},
+		{"override adds unknown host", "git.example.com", map[string]string{"git.example.com": "/-/tree/{branch}"}, "/-/tree/{branch}"},
+		{"empty override forces root", "github.com", map[string]string{"github.com": ""}, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			withHostBranchPaths(t, tt.override)
+			if got := branchPathForHost(tt.hostname); got != tt.want {
+				t.Errorf("branchPathForHost(%q) = %q, want %q", tt.hostname, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_buildBranchURL(t *testing.T) {
+	tests := []struct {
+		name      string
+		baseURL   string
+		branch    string
+		remoteURL string
+		override  map[string]string
+		want      string
+	}{
+		{
+			name:      "github",
+			baseURL:   "https://github.com/user/repo",
+			branch:    "feature",
+			remoteURL: "https://github.com/user/repo.git",
+			want:      "https://github.com/user/repo/tree/feature",
+		},
+		{
+			name:      "gitlab",
+			baseURL:   "https://gitlab.com/user/repo",
+			branch:    "feature",
+			remoteURL: "https://gitlab.com/user/repo.git",
+			want:      "https://gitlab.com/user/repo/-/tree/feature",
+		},
+		{
+			name:      "bitbucket",
+			baseURL:   "https://bitbucket.org/user/repo",
+			branch:    "feature",
+			remoteURL: "https://bitbucket.org/user/repo.git",
+			want:      "https://bitbucket.org/user/repo/src/feature",
+		},
+		{
+			name:      "codeberg",
+			baseURL:   "https://codeberg.org/user/repo",
+			branch:    "feature",
+			remoteURL: "https://codeberg.org/user/repo.git",
+			want:      "https://codeberg.org/user/repo/src/branch/feature",
+		},
+		{
+			name:      "sourcehut",
+			baseURL:   "https://git.sr.ht/~user/repo",
+			branch:    "feature",
+			remoteURL: "https://git.sr.ht/~user/repo",
+			want:      "https://git.sr.ht/~user/repo/tree/feature",
+		},
+		{
+			name:      "azure devops",
+			baseURL:   "https://dev.azure.com/org/project/_git/repo",
+			branch:    "feature",
+			remoteURL: "https://dev.azure.com/org/project/_git/repo",
+			want:      "https://dev.azure.com/org/project/_git/repo?version=GBfeature",
+		},
+		{
+			name:      "self-hosted gitlab via scp",
+			baseURL:   "https://gitlab.example.com/group/repo",
+			branch:    "feature",
+			remoteURL: "git@gitlab.example.com:group/repo.git",
+			want:      "https://gitlab.example.com/group/repo/-/tree/feature",
+		},
+		{
+			name:      "branch name with slash",
+			baseURL:   "https://github.com/user/repo",
+			branch:    "feature/nested",
+			remoteURL: "https://github.com/user/repo.git",
+			want:      "https://github.com/user/repo/tree/feature/nested",
+		},
+		{
+			name:      "unknown host falls back to repository root",
+			baseURL:   "https://git.mycorp.com/user/repo",
+			branch:    "feature",
+			remoteURL: "https://git.mycorp.com/user/repo.git",
+			want:      "https://git.mycorp.com/user/repo",
+		},
+		{
+			name:      "unknown host with scp remote falls back to root",
+			baseURL:   "https://git.mycorp.com/user/repo",
+			branch:    "feature",
+			remoteURL: "git@git.mycorp.com:user/repo.git",
+			want:      "https://git.mycorp.com/user/repo",
+		},
+		{
+			name:      "user override for unknown host",
+			baseURL:   "https://git.mycorp.com/user/repo",
+			branch:    "feature",
+			remoteURL: "https://git.mycorp.com/user/repo.git",
+			override:  map[string]string{"git.mycorp.com": "/-/tree/{branch}"},
+			want:      "https://git.mycorp.com/user/repo/-/tree/feature",
+		},
+		{
+			name:      "user override wins over built-in",
+			baseURL:   "https://github.com/user/repo",
+			branch:    "feature",
+			remoteURL: "https://github.com/user/repo.git",
+			override:  map[string]string{"github.com": "/custom/{branch}"},
+			want:      "https://github.com/user/repo/custom/feature",
+		},
+		{
+			name:      "empty override disables branch link",
+			baseURL:   "https://github.com/user/repo",
+			branch:    "feature",
+			remoteURL: "https://github.com/user/repo.git",
+			override:  map[string]string{"github.com": ""},
+			want:      "https://github.com/user/repo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			withHostBranchPaths(t, tt.override)
+			if got := buildBranchURL(tt.baseURL, tt.branch, tt.remoteURL); got != tt.want {
+				t.Errorf("buildBranchURL(%q, %q, %q) = %q, want %q", tt.baseURL, tt.branch, tt.remoteURL, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_parseHostBranchPaths(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  map[string]any
+		want map[string]string
+	}{
+		{
+			name: "plain string values",
+			raw: map[string]any{
+				"gitlab.example.com": "/-/tree/{branch}",
+				"gitea.example.com":  "/src/branch/{branch}",
+			},
+			want: map[string]string{
+				"gitlab.example.com": "/-/tree/{branch}",
+				"gitea.example.com":  "/src/branch/{branch}",
+			},
+		},
+		{
+			name: "nested branch objects",
+			raw: map[string]any{
+				"gitlab.example.com": map[string]any{"branch": "/-/tree/{branch}"},
+				"gitea.example.com":  map[any]any{"branch": "/src/branch/{branch}"},
+			},
+			want: map[string]string{
+				"gitlab.example.com": "/-/tree/{branch}",
+				"gitea.example.com":  "/src/branch/{branch}",
+			},
+		},
+		{
+			name: "hosts are lowercased and trimmed",
+			raw: map[string]any{
+				"  GitLab.Example.COM  ": " /-/tree/{branch} ",
+			},
+			want: map[string]string{
+				"gitlab.example.com": "/-/tree/{branch}",
+			},
+		},
+		{
+			name: "blank hosts are skipped",
+			raw: map[string]any{
+				"":  "/tree/{branch}",
+				" ": "/tree/{branch}",
+			},
+			want: map[string]string{},
+		},
+		{
+			name: "unsupported values are ignored",
+			raw: map[string]any{
+				"a.example.com": 42,
+				"b.example.com": nil,
+				"c.example.com": map[string]any{"other": "/x"},
+				"d.example.com": map[string]any{"branch": 42},
+			},
+			want: map[string]string{},
+		},
+		{
+			name: "empty config",
+			raw:  map[string]any{},
+			want: map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseHostBranchPaths(tt.raw)
+			if len(got) != len(tt.want) {
+				t.Fatalf("parseHostBranchPaths() = %v, want %v", got, tt.want)
+			}
+			for host, want := range tt.want {
+				if got[host] != want {
+					t.Errorf("parseHostBranchPaths()[%q] = %q, want %q", host, got[host], want)
+				}
+			}
+		})
+	}
+}
+
+// runRootForRepo runs the root command's RunE against a repository with the
+// given remote/branch and returns the URL that would have been opened.
+func runRootForRepo(t *testing.T, remoteURL, branch string) string {
+	t.Helper()
+
+	_, cleanup := testhelper.SetupTestRepo(t, remoteURL, branch)
+	t.Cleanup(cleanup)
+
+	original := OpenURLInBrowser
+	t.Cleanup(func() { OpenURLInBrowser = original })
+
+	var opened string
+	OpenURLInBrowser = func(url string) error {
+		opened = url
+		return nil
+	}
+
+	cmd := &cobra.Command{}
+	cmd.SetOut(new(bytes.Buffer))
+	cmd.Flags().Bool("plain", false, "")
+
+	if err := rootCmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("rootCmd.RunE() error = %v", err)
+	}
+	return opened
+}
+
+// Test_rootCmd_UnknownHostFallsBackToRoot is the end-to-end guarantee behind
+// "any repository": a host with no built-in rule opens the repository root
+// rather than a guessed branch URL that would 404.
+func Test_rootCmd_UnknownHostFallsBackToRoot(t *testing.T) {
+	withHostBranchPaths(t, nil)
+
+	got := runRootForRepo(t, "https://git.mycorp.com/user/repo.git", "feature-branch")
+	if want := "https://git.mycorp.com/user/repo"; got != want {
+		t.Errorf("opened URL = %q, want %q", got, want)
+	}
+}
+
+// Test_rootCmd_HostOverride ensures the hosts config reaches the root command.
+func Test_rootCmd_HostOverride(t *testing.T) {
+	withHostBranchPaths(t, map[string]string{"git.mycorp.com": "/-/tree/{branch}"})
+
+	got := runRootForRepo(t, "https://git.mycorp.com/user/repo.git", "feature-branch")
+	if want := "https://git.mycorp.com/user/repo/-/tree/feature-branch"; got != want {
+		t.Errorf("opened URL = %q, want %q", got, want)
+	}
+}
+
+// Test_initConfigHostOverrides checks that the "hosts" section is parsed from
+// the config file into HostBranchPaths.
+func Test_initConfigHostOverrides(t *testing.T) {
+	originalBrowserCommand := BrowserCommand
+	originalHostBranchPaths := HostBranchPaths
+	t.Cleanup(func() {
+		BrowserCommand = originalBrowserCommand
+		HostBranchPaths = originalHostBranchPaths
+	})
+	t.Setenv("BROWSER", "")
+
+	_, xdg := isolateConfig(t)
+	writeConfigFile(t, xdgConfigPath(xdg), `browser: firefox
+hosts:
+  gitlab.internal.example:
+    branch: "/-/tree/{branch}"
+  code.internal.example: "/src/branch/{branch}"
+`)
+
+	initConfig()
+
+	if BrowserCommand != "firefox" {
+		t.Errorf("BrowserCommand = %q, want %q", BrowserCommand, "firefox")
+	}
+	want := map[string]string{
+		"gitlab.internal.example": "/-/tree/{branch}",
+		"code.internal.example":   "/src/branch/{branch}",
+	}
+	if len(HostBranchPaths) != len(want) {
+		t.Fatalf("HostBranchPaths = %v, want %v", HostBranchPaths, want)
+	}
+	for host, path := range want {
+		if HostBranchPaths[host] != path {
+			t.Errorf("HostBranchPaths[%q] = %q, want %q", host, HostBranchPaths[host], path)
+		}
+	}
+}
