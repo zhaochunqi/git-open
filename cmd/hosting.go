@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"fmt"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -229,28 +231,43 @@ func stylePath(name string) (string, bool) {
 	return path, ok
 }
 
-// resolveBranchSpec turns a config value into a branch path template. A value
-// containing {branch} is used verbatim as a template; any other value is
-// resolved as a style name. An empty value resolves to the repository root.
-func resolveBranchSpec(spec string) (string, bool) {
-	spec = strings.TrimSpace(spec)
-	if spec == "" {
-		return branchPathRoot, true
+// knownStyles returns the sorted style names, used in error messages.
+func knownStyles() []string {
+	names := make([]string, 0, len(branchStyles))
+	for name := range branchStyles {
+		names = append(names, name)
 	}
-	if strings.Contains(spec, "{branch}") {
-		return spec, true
-	}
-	return stylePath(spec)
+	sort.Strings(names)
+	return names
 }
 
-// parseDefaultBranchPath resolves the "default_style" config value. It returns
-// the repository root path when the value is unset or not a known style.
-func parseDefaultBranchPath(spec string) string {
-	path, ok := resolveBranchSpec(spec)
-	if !ok {
-		return branchPathRoot
+// resolveBranchSpec turns a config value into a branch path template. A value
+// containing {branch} is used verbatim as a template; any other value is
+// resolved as a style name. An empty value resolves to the repository root,
+// and an unknown style name is an error so typos are not silently ignored.
+func resolveBranchSpec(spec string) (string, error) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return branchPathRoot, nil
 	}
-	return path
+	if strings.Contains(spec, "{branch}") {
+		return spec, nil
+	}
+	path, ok := stylePath(spec)
+	if !ok {
+		return "", fmt.Errorf("unknown style %q (known styles: %s)", spec, strings.Join(knownStyles(), ", "))
+	}
+	return path, nil
+}
+
+// parseDefaultBranchPath resolves the "default_style" config value. An empty
+// value resolves to the repository root; an unknown style is an error.
+func parseDefaultBranchPath(spec string) (string, error) {
+	path, err := resolveBranchSpec(spec)
+	if err != nil {
+		return "", fmt.Errorf("default_style: %w", err)
+	}
+	return path, nil
 }
 
 // parseHostBranchPaths converts the raw "hosts" config value into a map of
@@ -264,25 +281,26 @@ func parseDefaultBranchPath(spec string) string {
 //	    style: gitea
 //	  legacy.example.com: none
 //
-// Entries whose host is blank, or whose value cannot be resolved, are ignored.
-func parseHostBranchPaths(raw map[string]any) map[string]string {
+// A blank hostname, an unrecognised value, or an unknown style is an error so
+// configuration mistakes surface instead of being silently dropped.
+func parseHostBranchPaths(raw map[string]any) (map[string]string, error) {
 	paths := make(map[string]string, len(raw))
 	for host, value := range raw {
 		host = strings.ToLower(strings.TrimSpace(host))
 		if host == "" {
-			continue
+			return nil, fmt.Errorf("hosts: empty hostname key")
 		}
 		spec, ok := hostBranchSpec(value)
 		if !ok {
-			continue
+			return nil, fmt.Errorf("hosts[%q]: expected a style name, a template containing {branch}, or an object with a \"style\" or \"branch\" key", host)
 		}
-		path, ok := resolveBranchSpec(spec)
-		if !ok {
-			continue
+		path, err := resolveBranchSpec(spec)
+		if err != nil {
+			return nil, fmt.Errorf("hosts[%q]: %w", host, err)
 		}
 		paths[host] = path
 	}
-	return paths
+	return paths, nil
 }
 
 // hostBranchSpec extracts the raw branch spec from a config value. It accepts

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -313,9 +314,10 @@ func Test_buildBranchURL(t *testing.T) {
 
 func Test_parseHostBranchPaths(t *testing.T) {
 	tests := []struct {
-		name string
-		raw  map[string]any
-		want map[string]string
+		name    string
+		raw     map[string]any
+		want    map[string]string
+		wantErr string
 	}{
 		{
 			name: "plain string values",
@@ -347,14 +349,6 @@ func Test_parseHostBranchPaths(t *testing.T) {
 			want: map[string]string{
 				"gitlab.example.com": "/-/tree/{branch}",
 			},
-		},
-		{
-			name: "blank hosts are skipped",
-			raw: map[string]any{
-				"":  "/tree/{branch}",
-				" ": "/tree/{branch}",
-			},
-			want: map[string]string{},
 		},
 		{
 			name: "style names are resolved to templates",
@@ -416,26 +410,64 @@ func Test_parseHostBranchPaths(t *testing.T) {
 			},
 		},
 		{
-			name: "unsupported values are ignored",
-			raw: map[string]any{
-				"a.example.com": 42,
-				"b.example.com": nil,
-				"c.example.com": map[string]any{"other": "/x"},
-				"d.example.com": map[string]any{"branch": 42},
-				"e.example.com": "bogus-style",
-			},
-			want: map[string]string{},
-		},
-		{
 			name: "empty config",
 			raw:  map[string]any{},
 			want: map[string]string{},
+		},
+		{
+			name:    "blank hostname key",
+			raw:     map[string]any{"": "/tree/{branch}"},
+			wantErr: "empty hostname key",
+		},
+		{
+			name:    "whitespace-only hostname key",
+			raw:     map[string]any{"   ": "/tree/{branch}"},
+			wantErr: "empty hostname key",
+		},
+		{
+			name:    "non-string value",
+			raw:     map[string]any{"a.example.com": 42},
+			wantErr: `hosts["a.example.com"]: expected`,
+		},
+		{
+			name:    "nil value",
+			raw:     map[string]any{"a.example.com": nil},
+			wantErr: `hosts["a.example.com"]: expected`,
+		},
+		{
+			name:    "nested object without style or branch",
+			raw:     map[string]any{"a.example.com": map[string]any{"other": "/x"}},
+			wantErr: `hosts["a.example.com"]: expected`,
+		},
+		{
+			name:    "nested branch is not a string",
+			raw:     map[string]any{"a.example.com": map[string]any{"branch": 42}},
+			wantErr: `hosts["a.example.com"]: expected`,
+		},
+		{
+			name:    "unknown style in a plain value",
+			raw:     map[string]any{"a.example.com": "bogus-style"},
+			wantErr: `hosts["a.example.com"]: unknown style "bogus-style"`,
+		},
+		{
+			name:    "unknown style in a nested object",
+			raw:     map[string]any{"a.example.com": map[string]any{"style": "bogus-style"}},
+			wantErr: `hosts["a.example.com"]: unknown style "bogus-style"`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseHostBranchPaths(tt.raw)
+			got, err := parseHostBranchPaths(tt.raw)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Errorf("parseHostBranchPaths() error = %v, want error containing %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parseHostBranchPaths() unexpected error: %v", err)
+			}
 			if len(got) != len(tt.want) {
 				t.Fatalf("parseHostBranchPaths() = %v, want %v", got, tt.want)
 			}
@@ -530,25 +562,35 @@ func Test_stylePath(t *testing.T) {
 
 func Test_resolveBranchSpec(t *testing.T) {
 	tests := []struct {
-		name string
-		spec string
-		want string
-		ok   bool
+		name    string
+		spec    string
+		want    string
+		wantErr string
 	}{
-		{"style name", "gitea", "/src/branch/{branch}", true},
-		{"raw template", "/custom/{branch}/x", "/custom/{branch}/x", true},
-		{"whitespace around style", "  gitlab ", "/-/tree/{branch}", true},
-		{"empty is root", "", "", true},
-		{"whitespace only is root", "   ", "", true},
-		{"none is root", "none", "", true},
-		{"unknown style", "bogus", "", false},
+		{"style name", "gitea", "/src/branch/{branch}", ""},
+		{"raw template", "/custom/{branch}/x", "/custom/{branch}/x", ""},
+		{"whitespace around style", "  gitlab ", "/-/tree/{branch}", ""},
+		{"empty is root", "", "", ""},
+		{"whitespace only is root", "   ", "", ""},
+		{"none is root", "none", "", ""},
+		{"unknown style", "bogus", "", `unknown style "bogus"`},
+		{"unknown style lists known ones", "bogus", "", "known styles:"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, ok := resolveBranchSpec(tt.spec)
-			if got != tt.want || ok != tt.ok {
-				t.Errorf("resolveBranchSpec(%q) = (%q, %v), want (%q, %v)", tt.spec, got, ok, tt.want, tt.ok)
+			got, err := resolveBranchSpec(tt.spec)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("resolveBranchSpec(%q) unexpected error: %v", tt.spec, err)
+				}
+				if got != tt.want {
+					t.Errorf("resolveBranchSpec(%q) = %q, want %q", tt.spec, got, tt.want)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("resolveBranchSpec(%q) error = %v, want error containing %q", tt.spec, err, tt.wantErr)
 			}
 		})
 	}
@@ -556,22 +598,33 @@ func Test_resolveBranchSpec(t *testing.T) {
 
 func Test_parseDefaultBranchPath(t *testing.T) {
 	tests := []struct {
-		name string
-		spec string
-		want string
+		name    string
+		spec    string
+		want    string
+		wantErr string
 	}{
-		{"unset", "", ""},
-		{"style name", "gitea", "/src/branch/{branch}"},
-		{"case-insensitive style", "GitLab", "/-/tree/{branch}"},
-		{"none", "none", ""},
-		{"raw template", "/x/{branch}", "/x/{branch}"},
-		{"unknown style", "bogus", ""},
+		{"unset", "", "", ""},
+		{"style name", "gitea", "/src/branch/{branch}", ""},
+		{"case-insensitive style", "GitLab", "/-/tree/{branch}", ""},
+		{"none", "none", "", ""},
+		{"raw template", "/x/{branch}", "/x/{branch}", ""},
+		{"unknown style", "bogus", "", `default_style: unknown style "bogus"`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := parseDefaultBranchPath(tt.spec); got != tt.want {
-				t.Errorf("parseDefaultBranchPath(%q) = %q, want %q", tt.spec, got, tt.want)
+			got, err := parseDefaultBranchPath(tt.spec)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("parseDefaultBranchPath(%q) unexpected error: %v", tt.spec, err)
+				}
+				if got != tt.want {
+					t.Errorf("parseDefaultBranchPath(%q) = %q, want %q", tt.spec, got, tt.want)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("parseDefaultBranchPath(%q) error = %v, want error containing %q", tt.spec, err, tt.wantErr)
 			}
 		})
 	}
@@ -602,7 +655,9 @@ hosts:
     style: forgejo
 `)
 
-	initConfig()
+	if err := initConfig(); err != nil {
+		t.Fatalf("initConfig() error = %v", err)
+	}
 
 	if BrowserCommand != "firefox" {
 		t.Errorf("BrowserCommand = %q, want %q", BrowserCommand, "firefox")
@@ -634,9 +689,102 @@ func Test_initConfigDefaultStyleUnset(t *testing.T) {
 	t.Setenv("BROWSER", "")
 
 	isolateConfig(t)
-	initConfig()
+	if err := initConfig(); err != nil {
+		t.Fatalf("initConfig() error = %v", err)
+	}
 
 	if DefaultBranchPath != "" {
 		t.Errorf("DefaultBranchPath = %q, want empty", DefaultBranchPath)
+	}
+}
+
+// Test_initConfigInvalidHostStyle checks that a typo in a hosts value fails
+// instead of being silently ignored.
+func Test_initConfigInvalidHostStyle(t *testing.T) {
+	originalHostBranchPaths := HostBranchPaths
+	originalDefaultBranchPath := DefaultBranchPath
+	t.Cleanup(func() {
+		HostBranchPaths = originalHostBranchPaths
+		DefaultBranchPath = originalDefaultBranchPath
+	})
+	t.Setenv("BROWSER", "")
+
+	_, xdg := isolateConfig(t)
+	writeConfigFile(t, xdgConfigPath(xdg), "hosts:\n  git.example.com: gitea2\n")
+
+	err := initConfig()
+	if err == nil {
+		t.Fatal("initConfig() expected error for an unknown style, got nil")
+	}
+	if !strings.Contains(err.Error(), `hosts["git.example.com"]: unknown style "gitea2"`) {
+		t.Errorf("initConfig() error = %v, want unknown style for hosts[git.example.com]", err)
+	}
+}
+
+// Test_initConfigInvalidDefaultStyle checks that a typo in default_style is
+// reported with the key name.
+func Test_initConfigInvalidDefaultStyle(t *testing.T) {
+	originalDefaultBranchPath := DefaultBranchPath
+	t.Cleanup(func() { DefaultBranchPath = originalDefaultBranchPath })
+	t.Setenv("BROWSER", "")
+
+	_, xdg := isolateConfig(t)
+	writeConfigFile(t, xdgConfigPath(xdg), "default_style: gitea2\n")
+
+	err := initConfig()
+	if err == nil {
+		t.Fatal("initConfig() expected error for an unknown default_style, got nil")
+	}
+	if !strings.Contains(err.Error(), `default_style: unknown style "gitea2"`) {
+		t.Errorf("initConfig() error = %v, want default_style unknown style", err)
+	}
+}
+
+// Test_PersistentPreRunE_InvalidConfig checks that a broken config is surfaced
+// by the root command's PersistentPreRunE.
+func Test_PersistentPreRunE_InvalidConfig(t *testing.T) {
+	originalHostBranchPaths := HostBranchPaths
+	originalDefaultBranchPath := DefaultBranchPath
+	t.Cleanup(func() {
+		HostBranchPaths = originalHostBranchPaths
+		DefaultBranchPath = originalDefaultBranchPath
+	})
+	t.Setenv("BROWSER", "")
+
+	_, xdg := isolateConfig(t)
+	writeConfigFile(t, xdgConfigPath(xdg), "hosts:\n  git.example.com: nope\n")
+
+	cmd := &cobra.Command{}
+	cmd.Flags().Bool("version", false, "")
+
+	err := rootCmd.PersistentPreRunE(cmd, nil)
+	if err == nil {
+		t.Fatal("PersistentPreRunE() expected config error, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown style") {
+		t.Errorf("PersistentPreRunE() error = %v, want unknown style", err)
+	}
+}
+
+// Test_PersistentPreRunE_VersionAndHelpSkipValidation checks that --version and
+// the help command keep working even when the config file is broken.
+func Test_PersistentPreRunE_VersionAndHelpSkipValidation(t *testing.T) {
+	t.Setenv("BROWSER", "")
+
+	_, xdg := isolateConfig(t)
+	writeConfigFile(t, xdgConfigPath(xdg), "hosts:\n  git.example.com: nope\n")
+
+	versionCmd := &cobra.Command{}
+	versionCmd.Flags().Bool("version", false, "")
+	if err := versionCmd.Flags().Set("version", "true"); err != nil {
+		t.Fatal(err)
+	}
+	if err := rootCmd.PersistentPreRunE(versionCmd, nil); err != nil {
+		t.Errorf("PersistentPreRunE(--version) = %v, want nil", err)
+	}
+
+	helpCmd := &cobra.Command{Use: helpCommandName}
+	if err := rootCmd.PersistentPreRunE(helpCmd, nil); err != nil {
+		t.Errorf("PersistentPreRunE(help) = %v, want nil", err)
 	}
 }

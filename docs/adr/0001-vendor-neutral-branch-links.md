@@ -77,6 +77,11 @@ hosts:
 default_style: gitea
 ```
 
+6. **Fail loudly on configuration mistakes.** An unknown style name (in a `hosts` value,
+   a nested `style` key or `default_style`) is a hard error that lists the known styles,
+   instead of being silently ignored. `--version` and the `help` command bypass
+   validation, so a broken config never locks the user out of the CLI.
+
 The built-in rules are:
 
 | Host pattern | Service | Branch path |
@@ -102,8 +107,9 @@ The built-in rules are:
   config file. Adding a new *style* still requires a release, but the existing
   templates cover the common families.
 - **Small new config surface:** `hosts` and `default_style` must be documented
-  and validated. Unknown style names are ignored rather than failing the
-  command, matching the existing lenient parsing.
+  and validated. An unknown style name is a hard error listing the known styles,
+  so a typo surfaces instead of silently changing behaviour. `--version` and
+  `help` bypass validation so a broken config cannot lock the user out.
 - **The hostname is the only contract:** providers that multiplex Git repositories
   under a generic host (for example a monorepo gateway) still need a user
   override, since no static rule can identify them.

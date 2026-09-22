@@ -21,6 +21,14 @@ var rootCmd = &cobra.Command{
 directory, converts it to a web URL, and opens it in your default browser.
 Pass --plain (-p) to print the URL instead of opening it.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// --version and the help command must keep working even when the config
+		// file is invalid, so they bypass config validation.
+		if showVersion, _ := cmd.Flags().GetBool("version"); showVersion || cmd.Name() == helpCommandName {
+			return nil
+		}
+		if err := initConfig(); err != nil {
+			return err
+		}
 		for _, path := range chdirPaths {
 			if err := os.Chdir(path); err != nil {
 				return fmt.Errorf("error changing directory to %q: %w", path, err)
@@ -77,8 +85,6 @@ var Execute = func() error {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
-
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
@@ -92,8 +98,10 @@ func init() {
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
 }
 
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
+// initConfig reads the config file and the environment. It returns an error
+// when the file exists but its branch configuration is invalid, so a typo
+// fails the command instead of being silently ignored.
+func initConfig() error {
 	// Start from a clean slate so repeated calls (e.g. in tests) never pick
 	// up a config file path set by an earlier run.
 	viper.Reset()
@@ -110,8 +118,23 @@ func initConfig() {
 	}
 
 	BrowserCommand = strings.TrimSpace(viper.GetString("browser"))
-	HostBranchPaths = parseHostBranchPaths(viper.GetStringMap("hosts"))
-	DefaultBranchPath = parseDefaultBranchPath(viper.GetString("default_style"))
+
+	hostPaths, err := parseHostBranchPaths(viper.GetStringMap("hosts"))
+	if err != nil {
+		HostBranchPaths = map[string]string{}
+		DefaultBranchPath = ""
+		return err
+	}
+	HostBranchPaths = hostPaths
+
+	defaultPath, err := parseDefaultBranchPath(viper.GetString("default_style"))
+	if err != nil {
+		DefaultBranchPath = ""
+		return err
+	}
+	DefaultBranchPath = defaultPath
+
+	return nil
 }
 
 // configFilePath returns the config file to load: the --config value when
