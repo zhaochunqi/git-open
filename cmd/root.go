@@ -15,9 +15,10 @@ var chdirPaths []string
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "git-open",
-	Short: "Print the web URL of the Git repository",
-	Long: `This application retrieves the remote URL of the Git repository in the current working directory
-and converts it to a web URL. The web URL is then printed to the console.`,
+	Short: "Open the current Git repository in your browser",
+	Long: `This application retrieves the remote URL of the Git repository in the current working
+directory, converts it to a web URL, and opens it in your default browser.
+Pass --plain (-p) to print the URL instead of opening it.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		for _, path := range chdirPaths {
 			if err := os.Chdir(path); err != nil {
@@ -65,6 +66,9 @@ and converts it to a web URL. The web URL is then printed to the console.`,
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 var Execute = func() error {
+	// Register the help command (with its "h" alias) before argument
+	// parsing so that "git-open h" resolves.
+	ensureHelpCommand(rootCmd)
 	if err := rootCmd.Execute(); err != nil {
 		return err
 	}
