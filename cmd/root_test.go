@@ -190,6 +190,7 @@ func Test_initConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("BROWSER", "")
+			t.Setenv("XDG_CONFIG_HOME", "") // never pick up the developer's real config
 
 			// Setup logic moved directly into the test case
 			switch tt.name {
@@ -454,6 +455,7 @@ func Test_initConfig_ErrorCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("XDG_CONFIG_HOME", "") // never pick up the developer's real config
 			tt.setup()
 			initConfig()
 		})

@@ -5,6 +5,17 @@
 **macOS · Linux · Windows · WSL** — a single static binary that opens the current
 Git repository in your browser, with no runtime dependencies and no configuration.
 
+> [!IMPORTANT]
+> **After installation, just run `git open`:**
+>
+> ```sh
+> git open
+> ```
+>
+> Run it inside any Git repository and that repository opens in your browser —
+> on your current branch. That's the whole workflow; `git-open` works too, since
+> git treats it as the `open` subcommand.
+
 ## 🚀 Quick Install
 
 The fastest way is a package manager:
@@ -45,8 +56,8 @@ that matches your machine and follow [Installation Options](#installation-option
   WSLg, X server or `xdg-open` is required.
 * **Branch aware** — opens the current branch, while `main` / `master` fall back to the
   repository root.
-* **Configurable browser** — `~/.git-open.yaml` (`browser: ...`) or the `BROWSER`
-  environment variable.
+* **Configurable browser** — `~/.config/git-open/config.yaml` (`browser: ...`),
+  following the XDG Base Directory spec, or the `BROWSER` environment variable.
 * **`git -C` style `-C` flag** — run as if started in another directory.
 * **Lightweight** — one static binary per platform and no runtime dependencies.
 
@@ -256,7 +267,13 @@ browser: /mnt/c/Program Files/Google/Chrome/Application/chrome.exe
 
 ## Configuration
 
-`git-open` reads `~/.git-open.yaml` (point it elsewhere with `--config`):
+`git-open` reads the first file that exists, in this order (following the
+[XDG Base Directory specification](https://specifications.freedesktop.org/basedir-spec/latest/)):
+
+1. the path given to `--config` — always wins when passed
+2. `$XDG_CONFIG_HOME/git-open/config.yaml` — i.e. `~/.config/git-open/config.yaml`
+   when `XDG_CONFIG_HOME` is not set
+3. `~/.git-open.yaml` — the legacy location, still supported
 
 ```yaml
 # Command used to open the URL, executed with the URL as its only argument.

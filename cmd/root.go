@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -82,7 +83,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.git-open.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: $XDG_CONFIG_HOME/git-open/config.yaml or ~/.git-open.yaml)")
 	rootCmd.PersistentFlags().StringArrayVarP(&chdirPaths, "chdir", "C", nil, "Run as if git-open was started in <path> instead of the current working directory. May be given multiple times; a non-absolute <path> is relative to the previous one.")
 
 	// Cobra also supports local flags, which will only run
@@ -93,18 +94,12 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+	// Start from a clean slate so repeated calls (e.g. in tests) never pick
+	// up a config file path set by an earlier run.
+	viper.Reset()
 
-		// Search config in home directory with name ".git-open" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName(".git-open")
+	if path := configFilePath(); path != "" {
+		viper.SetConfigFile(path)
 	}
 
 	viper.AutomaticEnv() // read in environment variables that match
@@ -115,6 +110,49 @@ func initConfig() {
 	}
 
 	BrowserCommand = strings.TrimSpace(viper.GetString("browser"))
+}
+
+// configFilePath returns the config file to load: the --config value when
+// set, otherwise the first default location that exists, or "" when there
+// is no config file at all (only environment variables are used then).
+func configFilePath() string {
+	if cfgFile != "" {
+		return cfgFile
+	}
+	for _, path := range defaultConfigPaths() {
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			return path
+		}
+	}
+	return ""
+}
+
+// defaultConfigPaths lists the default config file locations in order of
+// precedence, following the XDG Base Directory specification:
+// $XDG_CONFIG_HOME/git-open/config.yaml (falling back to ~/.config), then
+// the legacy ~/.git-open.yaml.
+func defaultConfigPaths() []string {
+	var paths []string
+	if dir := xdgConfigHome(); dir != "" {
+		paths = append(paths, filepath.Join(dir, "git-open", "config.yaml"))
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		paths = append(paths, filepath.Join(home, ".git-open.yaml"))
+	}
+	return paths
+}
+
+// xdgConfigHome returns $XDG_CONFIG_HOME when it is set to an absolute
+// path, otherwise ~/.config. The spec requires a relative $XDG_CONFIG_HOME
+// to be ignored.
+func xdgConfigHome() string {
+	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" && filepath.IsAbs(dir) {
+		return dir
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		return filepath.Join(home, ".config")
+	}
+	return ""
 }
 
 func shouldAppendBranch(branchName string) bool {
