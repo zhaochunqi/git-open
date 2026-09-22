@@ -53,16 +53,28 @@ Make branch linking data-driven and vendor-neutral.
    repository root URL is opened. A wrong branch URL is worse than no branch
    link.
 
-4. **Let users extend the table** through the `hosts` section of the config
-   file, accepting either a plain string or a nested `branch:` key. An empty
-   value forces the repository root for that host.
+4. **Let users extend the table** through the `hosts` section of the config file.
+   Because writing raw path templates is error-prone, the templates are also exposed as
+   named **styles** (`github`, `gitlab`, `bitbucket`, `gitea`/`forgejo`/`codeberg`,
+   `sourcehut`, `azure-devops`, `none`). A `hosts` value that contains `{branch}` is a
+   raw template; any other value is resolved as a style name. A nested object accepts
+   either a `style` or a `branch` key, with `branch` taking precedence.
 
 ```yaml
 hosts:
-  gitlab.example.com: "/-/tree/{branch}"
-  gitea.example.com:
-    branch: "/src/branch/{branch}"
-  github.mycorp.com: "/tree/{branch}"
+  git.internal.example: gitea
+  gitlab.internal.example:
+    style: gitlab
+  legacy.example.com: none          # repository root only
+  custom.example.com: "/-/tree/{branch}"   # raw template still works
+```
+
+5. **Offer a single fallback for uniform fleets.** `default_style` applies to hosts with
+   no built-in rule and no override, so an organisation running Gitea everywhere sets it
+   once. It never overrides a built-in rule or an explicit `hosts` entry.
+
+```yaml
+default_style: gitea
 ```
 
 The built-in rules are:
@@ -83,12 +95,15 @@ The built-in rules are:
 - **Behaviour change:** unknown hosts no longer receive a `/tree/{branch}`
   URL. Repositories on GitHub Enterprise or other self-hosted instances
   reachable only by a custom domain now open the repository root; users who
-  want branch links configure them under `hosts`. This is intentional and
-  documented.
+  want branch links configure them under `hosts` or with `default_style`. This
+  is intentional and documented.
 - **Extensible without a release:** a new hosting provider can be supported for
-  one user, or for everyone, by editing the rule table or the config file.
-- **Small new config surface:** `hosts` must be documented and validated. The
-  parser ignores malformed entries rather than failing the command.
+  one user, or for everyone, by mapping the host to a style or template in the
+  config file. Adding a new *style* still requires a release, but the existing
+  templates cover the common families.
+- **Small new config surface:** `hosts` and `default_style` must be documented
+  and validated. Unknown style names are ignored rather than failing the
+  command, matching the existing lenient parsing.
 - **The hostname is the only contract:** providers that multiplex Git repositories
   under a generic host (for example a monorepo gateway) still need a user
   override, since no static rule can identify them.

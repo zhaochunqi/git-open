@@ -111,6 +111,7 @@ func initConfig() {
 
 	BrowserCommand = strings.TrimSpace(viper.GetString("browser"))
 	HostBranchPaths = parseHostBranchPaths(viper.GetStringMap("hosts"))
+	DefaultBranchPath = parseDefaultBranchPath(viper.GetString("default_style"))
 }
 
 // configFilePath returns the config file to load: the --config value when

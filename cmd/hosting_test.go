@@ -17,6 +17,14 @@ func withHostBranchPaths(t *testing.T, paths map[string]string) {
 	t.Cleanup(func() { HostBranchPaths = original })
 }
 
+// withDefaultBranchPath swaps the global default branch path for a test.
+func withDefaultBranchPath(t *testing.T, path string) {
+	t.Helper()
+	original := DefaultBranchPath
+	DefaultBranchPath = path
+	t.Cleanup(func() { DefaultBranchPath = original })
+}
+
 func TestHostingServiceString(t *testing.T) {
 	tests := []struct {
 		service HostingService
@@ -136,28 +144,33 @@ func Test_getHostingService(t *testing.T) {
 
 func Test_branchPathForHost(t *testing.T) {
 	tests := []struct {
-		name     string
-		hostname string
-		override map[string]string
-		want     string
+		name        string
+		hostname    string
+		override    map[string]string
+		defaultPath string
+		want        string
 	}{
-		{"github", "github.com", nil, "/tree/{branch}"},
-		{"gitlab", "gitlab.com", nil, "/-/tree/{branch}"},
-		{"bitbucket", "bitbucket.org", nil, "/src/{branch}"},
-		{"codeberg", "codeberg.org", nil, "/src/branch/{branch}"},
-		{"sourcehut", "git.sr.ht", nil, "/tree/{branch}"},
-		{"azure devops", "dev.azure.com", nil, "?version=GB{branch}"},
-		{"self-hosted gitlab", "gitlab.example.com", nil, "/-/tree/{branch}"},
-		{"unknown host", "example.com", nil, ""},
-		{"empty host", "", nil, ""},
-		{"override wins over built-in", "github.com", map[string]string{"github.com": "/custom/{branch}"}, "/custom/{branch}"},
-		{"override adds unknown host", "git.example.com", map[string]string{"git.example.com": "/-/tree/{branch}"}, "/-/tree/{branch}"},
-		{"empty override forces root", "github.com", map[string]string{"github.com": ""}, ""},
+		{"github", "github.com", nil, "", "/tree/{branch}"},
+		{"gitlab", "gitlab.com", nil, "", "/-/tree/{branch}"},
+		{"bitbucket", "bitbucket.org", nil, "", "/src/{branch}"},
+		{"codeberg", "codeberg.org", nil, "", "/src/branch/{branch}"},
+		{"sourcehut", "git.sr.ht", nil, "", "/tree/{branch}"},
+		{"azure devops", "dev.azure.com", nil, "", "?version=GB{branch}"},
+		{"self-hosted gitlab", "gitlab.example.com", nil, "", "/-/tree/{branch}"},
+		{"unknown host", "example.com", nil, "", ""},
+		{"empty host", "", nil, "/tree/{branch}", ""},
+		{"override wins over built-in", "github.com", map[string]string{"github.com": "/custom/{branch}"}, "", "/custom/{branch}"},
+		{"override adds unknown host", "git.example.com", map[string]string{"git.example.com": "/-/tree/{branch}"}, "", "/-/tree/{branch}"},
+		{"empty override forces root", "github.com", map[string]string{"github.com": ""}, "/tree/{branch}", ""},
+		{"default style for unknown host", "git.example.com", nil, "/src/branch/{branch}", "/src/branch/{branch}"},
+		{"default does not beat built-in", "github.com", nil, "/src/branch/{branch}", "/tree/{branch}"},
+		{"default does not beat override", "git.example.com", map[string]string{"git.example.com": "/-/tree/{branch}"}, "/src/branch/{branch}", "/-/tree/{branch}"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			withHostBranchPaths(t, tt.override)
+			withDefaultBranchPath(t, tt.defaultPath)
 			if got := branchPathForHost(tt.hostname); got != tt.want {
 				t.Errorf("branchPathForHost(%q) = %q, want %q", tt.hostname, got, tt.want)
 			}
@@ -167,12 +180,13 @@ func Test_branchPathForHost(t *testing.T) {
 
 func Test_buildBranchURL(t *testing.T) {
 	tests := []struct {
-		name      string
-		baseURL   string
-		branch    string
-		remoteURL string
-		override  map[string]string
-		want      string
+		name        string
+		baseURL     string
+		branch      string
+		remoteURL   string
+		override    map[string]string
+		defaultPath string
+		want        string
 	}{
 		{
 			name:      "github",
@@ -268,11 +282,28 @@ func Test_buildBranchURL(t *testing.T) {
 			override:  map[string]string{"github.com": ""},
 			want:      "https://github.com/user/repo",
 		},
+		{
+			name:        "default style applies to unknown host",
+			baseURL:     "https://git.mycorp.com/user/repo",
+			branch:      "feature",
+			remoteURL:   "https://git.mycorp.com/user/repo.git",
+			defaultPath: "/src/branch/{branch}",
+			want:        "https://git.mycorp.com/user/repo/src/branch/feature",
+		},
+		{
+			name:        "default style does not override a built-in rule",
+			baseURL:     "https://github.com/user/repo",
+			branch:      "feature",
+			remoteURL:   "https://github.com/user/repo.git",
+			defaultPath: "/src/branch/{branch}",
+			want:        "https://github.com/user/repo/tree/feature",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			withHostBranchPaths(t, tt.override)
+			withDefaultBranchPath(t, tt.defaultPath)
 			if got := buildBranchURL(tt.baseURL, tt.branch, tt.remoteURL); got != tt.want {
 				t.Errorf("buildBranchURL(%q, %q, %q) = %q, want %q", tt.baseURL, tt.branch, tt.remoteURL, got, tt.want)
 			}
@@ -326,12 +357,72 @@ func Test_parseHostBranchPaths(t *testing.T) {
 			want: map[string]string{},
 		},
 		{
+			name: "style names are resolved to templates",
+			raw: map[string]any{
+				"git.example.com":      "gitea",
+				"forgejo.example.com":  "forgejo",
+				"codeberg.example.com": "codeberg",
+				"lab.example.com":      "gitlab",
+				"hub.example.com":      "github",
+			},
+			want: map[string]string{
+				"git.example.com":      "/src/branch/{branch}",
+				"forgejo.example.com":  "/src/branch/{branch}",
+				"codeberg.example.com": "/src/branch/{branch}",
+				"lab.example.com":      "/-/tree/{branch}",
+				"hub.example.com":      "/tree/{branch}",
+			},
+		},
+		{
+			name: "style names are case-insensitive",
+			raw: map[string]any{
+				"git.example.com": "Gitea",
+			},
+			want: map[string]string{
+				"git.example.com": "/src/branch/{branch}",
+			},
+		},
+		{
+			name: "nested style objects",
+			raw: map[string]any{
+				"gitlab.example.com": map[string]any{"style": "gitlab"},
+				"gitea.example.com":  map[any]any{"style": "gitea"},
+			},
+			want: map[string]string{
+				"gitlab.example.com": "/-/tree/{branch}",
+				"gitea.example.com":  "/src/branch/{branch}",
+			},
+		},
+		{
+			name: "branch key wins over style key",
+			raw: map[string]any{
+				"git.example.com": map[string]any{"style": "gitea", "branch": "/custom/{branch}"},
+			},
+			want: map[string]string{
+				"git.example.com": "/custom/{branch}",
+			},
+		},
+		{
+			name: "none and empty force the repository root",
+			raw: map[string]any{
+				"a.example.com": "none",
+				"b.example.com": "",
+				"c.example.com": map[string]any{"style": "none"},
+			},
+			want: map[string]string{
+				"a.example.com": "",
+				"b.example.com": "",
+				"c.example.com": "",
+			},
+		},
+		{
 			name: "unsupported values are ignored",
 			raw: map[string]any{
 				"a.example.com": 42,
 				"b.example.com": nil,
 				"c.example.com": map[string]any{"other": "/x"},
 				"d.example.com": map[string]any{"branch": 42},
+				"e.example.com": "bogus-style",
 			},
 			want: map[string]string{},
 		},
@@ -389,6 +480,7 @@ func runRootForRepo(t *testing.T, remoteURL, branch string) string {
 // rather than a guessed branch URL that would 404.
 func Test_rootCmd_UnknownHostFallsBackToRoot(t *testing.T) {
 	withHostBranchPaths(t, nil)
+	withDefaultBranchPath(t, "")
 
 	got := runRootForRepo(t, "https://git.mycorp.com/user/repo.git", "feature-branch")
 	if want := "https://git.mycorp.com/user/repo"; got != want {
@@ -406,23 +498,108 @@ func Test_rootCmd_HostOverride(t *testing.T) {
 	}
 }
 
+func Test_stylePath(t *testing.T) {
+	tests := []struct {
+		name string
+		want string
+		ok   bool
+	}{
+		{"github", "/tree/{branch}", true},
+		{"gitlab", "/-/tree/{branch}", true},
+		{"bitbucket", "/src/{branch}", true},
+		{"gitea", "/src/branch/{branch}", true},
+		{"forgejo", "/src/branch/{branch}", true},
+		{"codeberg", "/src/branch/{branch}", true},
+		{"sourcehut", "/tree/{branch}", true},
+		{"azure-devops", "?version=GB{branch}", true},
+		{"none", "", true},
+		{"  GITLAB  ", "/-/tree/{branch}", true},
+		{"bogus", "", false},
+		{"", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := stylePath(tt.name)
+			if got != tt.want || ok != tt.ok {
+				t.Errorf("stylePath(%q) = (%q, %v), want (%q, %v)", tt.name, got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
+
+func Test_resolveBranchSpec(t *testing.T) {
+	tests := []struct {
+		name string
+		spec string
+		want string
+		ok   bool
+	}{
+		{"style name", "gitea", "/src/branch/{branch}", true},
+		{"raw template", "/custom/{branch}/x", "/custom/{branch}/x", true},
+		{"whitespace around style", "  gitlab ", "/-/tree/{branch}", true},
+		{"empty is root", "", "", true},
+		{"whitespace only is root", "   ", "", true},
+		{"none is root", "none", "", true},
+		{"unknown style", "bogus", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := resolveBranchSpec(tt.spec)
+			if got != tt.want || ok != tt.ok {
+				t.Errorf("resolveBranchSpec(%q) = (%q, %v), want (%q, %v)", tt.spec, got, ok, tt.want, tt.ok)
+			}
+		})
+	}
+}
+
+func Test_parseDefaultBranchPath(t *testing.T) {
+	tests := []struct {
+		name string
+		spec string
+		want string
+	}{
+		{"unset", "", ""},
+		{"style name", "gitea", "/src/branch/{branch}"},
+		{"case-insensitive style", "GitLab", "/-/tree/{branch}"},
+		{"none", "none", ""},
+		{"raw template", "/x/{branch}", "/x/{branch}"},
+		{"unknown style", "bogus", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parseDefaultBranchPath(tt.spec); got != tt.want {
+				t.Errorf("parseDefaultBranchPath(%q) = %q, want %q", tt.spec, got, tt.want)
+			}
+		})
+	}
+}
+
 // Test_initConfigHostOverrides checks that the "hosts" section is parsed from
 // the config file into HostBranchPaths.
 func Test_initConfigHostOverrides(t *testing.T) {
 	originalBrowserCommand := BrowserCommand
 	originalHostBranchPaths := HostBranchPaths
+	originalDefaultBranchPath := DefaultBranchPath
 	t.Cleanup(func() {
 		BrowserCommand = originalBrowserCommand
 		HostBranchPaths = originalHostBranchPaths
+		DefaultBranchPath = originalDefaultBranchPath
 	})
 	t.Setenv("BROWSER", "")
 
 	_, xdg := isolateConfig(t)
 	writeConfigFile(t, xdgConfigPath(xdg), `browser: firefox
+default_style: gitea
 hosts:
   gitlab.internal.example:
     branch: "/-/tree/{branch}"
   code.internal.example: "/src/branch/{branch}"
+  gh.internal.example: github
+  forge.internal.example:
+    style: forgejo
 `)
 
 	initConfig()
@@ -433,6 +610,8 @@ hosts:
 	want := map[string]string{
 		"gitlab.internal.example": "/-/tree/{branch}",
 		"code.internal.example":   "/src/branch/{branch}",
+		"gh.internal.example":     "/tree/{branch}",
+		"forge.internal.example":  "/src/branch/{branch}",
 	}
 	if len(HostBranchPaths) != len(want) {
 		t.Fatalf("HostBranchPaths = %v, want %v", HostBranchPaths, want)
@@ -441,5 +620,23 @@ hosts:
 		if HostBranchPaths[host] != path {
 			t.Errorf("HostBranchPaths[%q] = %q, want %q", host, HostBranchPaths[host], path)
 		}
+	}
+	if DefaultBranchPath != "/src/branch/{branch}" {
+		t.Errorf("DefaultBranchPath = %q, want %q", DefaultBranchPath, "/src/branch/{branch}")
+	}
+}
+
+// Test_initConfigDefaultStyleUnset checks that a missing default_style leaves
+// unknown hosts opening the repository root.
+func Test_initConfigDefaultStyleUnset(t *testing.T) {
+	originalDefaultBranchPath := DefaultBranchPath
+	t.Cleanup(func() { DefaultBranchPath = originalDefaultBranchPath })
+	t.Setenv("BROWSER", "")
+
+	isolateConfig(t)
+	initConfig()
+
+	if DefaultBranchPath != "" {
+		t.Errorf("DefaultBranchPath = %q, want empty", DefaultBranchPath)
 	}
 }
