@@ -124,7 +124,7 @@ mise use -g github:zhaochunqi/git-open
 Or pin a specific release:
 
 ```sh
-mise use -g github:zhaochunqi/git-open@2.6.0
+mise use -g github:zhaochunqi/git-open@2.9.0
 ```
 
 This uses mise's [`github` backend](https://mise.jdx.dev/dev-tools/backends/github.html), which
@@ -157,7 +157,7 @@ nix profile install github:zhaochunqi/git-open
 Or pin a release tag:
 
 ```sh
-nix profile install github:zhaochunqi/git-open/v2.6.0
+nix profile install github:zhaochunqi/git-open/v2.9.0
 ```
 
 From a local checkout:
