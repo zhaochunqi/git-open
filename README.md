@@ -9,14 +9,21 @@ Git repository in your browser, with no runtime dependencies and no configuratio
 
 The fastest way is a package manager:
 
+**mise** (macOS · Linux · WSL):
+
 ```sh
-# mise (macOS · Linux · WSL)
 mise use -g github:zhaochunqi/git-open
+```
 
-# Nix
+**Nix**:
+
+```sh
 nix profile install github:zhaochunqi/git-open
+```
 
-# Homebrew (macOS)
+**Homebrew** (macOS):
+
+```sh
 brew install --cask zhaochunqi/tap/git-open
 ```
 
@@ -67,11 +74,15 @@ rather install manually.
 
 For users who prefer mise for version management (works on macOS, Linux and WSL):
 
-```sh
-# install the latest release globally
-mise use -g github:zhaochunqi/git-open
+Install the latest release globally:
 
-# or pin a specific release
+```sh
+mise use -g github:zhaochunqi/git-open
+```
+
+Or pin a specific release:
+
+```sh
 mise use -g github:zhaochunqi/git-open@2.6.0
 ```
 
@@ -90,14 +101,21 @@ installs pre-built binaries straight from GitHub Releases. The older
 
 Using flakes (recommended):
 
+One-shot run without installing:
+
 ```sh
-# one-shot run without installing
 nix run github:zhaochunqi/git-open
+```
 
-# install into your profile
+Install into your profile:
+
+```sh
 nix profile install github:zhaochunqi/git-open
+```
 
-# or pin a release tag
+Or pin a release tag:
+
+```sh
 nix profile install github:zhaochunqi/git-open/v2.6.0
 ```
 
@@ -106,8 +124,11 @@ From a local checkout:
 ```sh
 nix build
 ./result/bin/git-open version
+```
 
-# development shell with Go toolchain
+Development shell with Go toolchain:
+
+```sh
 nix develop
 ```
 
@@ -123,28 +144,38 @@ brew install --cask zhaochunqi/tap/git-open
 
 ### Prebuilt binaries (manual, all platforms)
 
-Download the asset for your platform:
+Download the asset for your platform.
+
+**macOS (Intel):**
 
 ```sh
-# macOS (Intel)
 curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Darwin_x86_64.tar.gz -o git-open.tar.gz
 tar -xzf git-open.tar.gz
 chmod +x git-open
 sudo mv git-open /usr/local/bin/
+```
 
-# macOS (Apple Silicon)
+**macOS (Apple Silicon):**
+
+```sh
 curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Darwin_arm64.tar.gz -o git-open.tar.gz
 tar -xzf git-open.tar.gz
 chmod +x git-open
 sudo mv git-open /usr/local/bin/
+```
 
-# Linux (x86_64)
+**Linux (x86_64):**
+
+```sh
 curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_x86_64.tar.gz -o git-open.tar.gz
 tar -xzf git-open.tar.gz
 chmod +x git-open
 sudo mv git-open /usr/local/bin/
+```
 
-# Linux (arm64)
+**Linux (arm64):**
+
+```sh
 curl -L https://github.com/zhaochunqi/git-open/releases/latest/download/git-open_Linux_arm64.tar.gz -o git-open.tar.gz
 tar -xzf git-open.tar.gz
 chmod +x git-open
