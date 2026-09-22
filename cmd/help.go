@@ -101,7 +101,6 @@ func usageText(cmd *cobra.Command) string {
 	// always report "[command options]", no matter how help was triggered.
 	cmd.InitDefaultHelpFlag()
 	path := cmd.CommandPath()
-	localFlags := len(flagRows(cmd.LocalFlags())) > 0
 
 	switch {
 	case !cmd.HasParent() && cmd.HasAvailableSubCommands():
@@ -110,10 +109,8 @@ func usageText(cmd *cobra.Command) string {
 		return path + " [global options] [arguments...]"
 	case cmd.HasAvailableSubCommands():
 		return path + " [command [command options]]"
-	case localFlags:
-		return path + " [command options] [arguments...]"
 	default:
-		return path + " [arguments...]"
+		return path + " [command options] [arguments...]"
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // captureHelp redirects rootCmd's stdout and stderr while fn runs and
@@ -55,7 +56,9 @@ func helpSection(t *testing.T, output, title string) []helpRowLine {
 		}
 		m := re.FindStringSubmatch(line)
 		if m == nil {
-			t.Fatalf("section %q: malformed row %q", title, line)
+			// Rows whose description is empty are printed without padding.
+			rows = append(rows, helpRowLine{left: strings.TrimSpace(line)})
+			continue
 		}
 		rows = append(rows, helpRowLine{
 			left:     m[1],
@@ -81,6 +84,9 @@ func assertAligned(t *testing.T, title string, rows []helpRowLine) {
 	}
 	want := 3 + width + 2
 	for _, row := range rows {
+		if row.right == "" {
+			continue // no description to align
+		}
 		if row.rightCol != want {
 			t.Errorf("%s: %q starts at column %d, want %d", title, row.right, row.rightCol, want)
 		}
@@ -277,4 +283,124 @@ func Test_usageText(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Test_writeHelpBareCommand renders help for a synthetic command tree to
+// cover the branches the real commands never hit: a NAME without a
+// description, a subcommand without a description, and a hidden
+// subcommand that must be skipped.
+func Test_writeHelpBareCommand(t *testing.T) {
+	root := &cobra.Command{Use: "demo"}
+	root.CompletionOptions.DisableDefaultCmd = true
+	root.AddCommand(&cobra.Command{Use: "plain", Run: func(*cobra.Command, []string) {}})
+	root.AddCommand(&cobra.Command{Use: "secret", Hidden: true})
+
+	buf := new(bytes.Buffer)
+	writeHelp(root, buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "NAME:\n   demo\n") {
+		t.Errorf("NAME section should omit the description:\n%s", out)
+	}
+	if !strings.Contains(out, "USAGE:\n   demo [global options] [command [command options]]\n") {
+		t.Errorf("USAGE section mismatch:\n%s", out)
+	}
+
+	rows := helpSection(t, out, "COMMANDS:")
+	var listed []string
+	for _, row := range rows {
+		listed = append(listed, row.left)
+		if row.left == "plain" && row.right != "" {
+			t.Errorf("command without Short must have an empty description, got %q", row.right)
+		}
+	}
+	if slicesContains(listed, "secret") {
+		t.Errorf("hidden command must not be listed: %v", listed)
+	}
+	if !slicesContains(listed, "plain") {
+		t.Errorf("COMMANDS missing %q: %v", "plain", listed)
+	}
+	assertAligned(t, "COMMANDS", rows)
+}
+
+// Test_writeHelpRootWithoutSubCommands covers the USAGE wording for a root
+// command that has no subcommands.
+func Test_writeHelpRootWithoutSubCommands(t *testing.T) {
+	root := &cobra.Command{Use: "lonely", Short: "A command without subcommands"}
+	root.CompletionOptions.DisableDefaultCmd = true
+
+	buf := new(bytes.Buffer)
+	writeHelp(root, buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "USAGE:\n   lonely [global options] [arguments...]\n") {
+		t.Errorf("USAGE section mismatch:\n%s", out)
+	}
+	if strings.Contains(out, "COMMANDS:") {
+		t.Errorf("COMMANDS section must be omitted:\n%s", out)
+	}
+}
+
+// Test_writeAuthorsEmpty covers the empty AUTHORS list.
+func Test_writeAuthorsEmpty(t *testing.T) {
+	orig := helpAuthors
+	helpAuthors = nil
+	defer func() { helpAuthors = orig }()
+
+	buf := new(bytes.Buffer)
+	writeAuthors(buf)
+	if buf.Len() != 0 {
+		t.Errorf("expected no output for empty authors, got %q", buf.String())
+	}
+}
+
+// Test_flagRows covers flag formatting: nil flag sets, hidden flags,
+// flags without a shorthand, and default-value suffixes.
+func Test_flagRows(t *testing.T) {
+	if rows := flagRows(nil); len(rows) != 0 {
+		t.Errorf("flagRows(nil) = %v, want no rows", rows)
+	}
+
+	fs := pflag.NewFlagSet("demo", pflag.ContinueOnError)
+	fs.String("token", "abc", "api token")
+	fs.Int("count", 3, "retry count")
+	fs.Bool("flag", false, "a flag")
+	fs.String("secret", "s3cr3t", "hidden flag")
+	if err := fs.MarkHidden("secret"); err != nil {
+		t.Fatalf("MarkHidden: %v", err)
+	}
+
+	rows := flagRows(fs)
+	byLeft := make(map[string]string, len(rows))
+	for _, row := range rows {
+		if strings.Contains(row.left, "secret") {
+			t.Errorf("hidden flag must not be listed: %q", row.left)
+		}
+		byLeft[row.left] = row.right
+	}
+
+	wants := map[string]string{
+		"--token value": `api token (default "abc")`, // string default, quoted
+		"--count value": "retry count (default 3)",   // non-string default
+		"--flag":        "a flag",                    // zero default, no suffix
+	}
+	for left, want := range wants {
+		got, ok := byLeft[left]
+		if !ok {
+			t.Errorf("missing flag row %q in %v", left, byLeft)
+			continue
+		}
+		if got != want {
+			t.Errorf("flag %q: description = %q, want %q", left, got, want)
+		}
+	}
+}
+
+func slicesContains(haystack []string, needle string) bool {
+	for _, s := range haystack {
+		if s == needle {
+			return true
+		}
+	}
+	return false
 }
