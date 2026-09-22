@@ -14,8 +14,10 @@ Git repository in your browser, with no runtime dependencies and no configuratio
 >
 > Run it inside any Git repository and that repository opens in your browser —
 > on your current branch. That's the whole workflow; `git-open` works too, since
-> git treats it as the `open` subcommand. Hosts without a known branch URL still
-> open the repository root, and any host can be taught one in the config file.
+> git treats it as the `open` subcommand. The supported hosts are listed under
+> [Hosts and branch URLs](#hosts-and-branch-urls); hosts without a known branch
+> URL still open the repository root, and any host can be mapped to a style in
+> the config file.
 
 ## 🚀 Quick Install
 
@@ -65,6 +67,29 @@ that matches your machine and follow [Installation Options](#installation-option
   following the XDG Base Directory spec, or the `BROWSER` environment variable.
 * **`git -C` style `-C` flag** — run as if started in another directory.
 * **Lightweight** — one static binary per platform and no runtime dependencies.
+
+## Hosts and branch URLs
+
+`git-open` picks the branch URL from the remote's hostname, so the same command works on
+every supported service. These hosts are recognised out of the box — the **style** column
+is the name you use in the [config file](#repository-hosts):
+
+| Host pattern | Style | Branch URL |
+| --- | --- | --- |
+| `github.com` | `github` | `/tree/<branch>` |
+| `gitlab.com` | `gitlab` | `/-/tree/<branch>` |
+| `bitbucket.org` | `bitbucket` | `/src/<branch>` |
+| `codeberg.org`, `gitea.com` | `gitea` | `/src/branch/<branch>` |
+| `git.sr.ht` | `sourcehut` | `/tree/<branch>` |
+| `dev.azure.com`, `*.visualstudio.com` | `azure-devops` | `?version=GB<branch>` |
+| any hostname with a `gitlab` label, e.g. `gitlab.example.com` | `gitlab` | `/-/tree/<branch>` |
+| any hostname with a `gitea` or `forgejo` label | `gitea` | `/src/branch/<branch>` |
+
+On `main` / `master`, and on any host that is not in the table, `git-open` opens the
+repository root instead. A host is never guessed: GitHub Enterprise, Azure DevOps Server
+and self-hosted instances on a neutral domain such as `git.example.com` stay at the root
+until you map them to a style (or to `none` to keep them there) under
+[Repository hosts](#repository-hosts).
 
 ## Platform Support
 
@@ -298,41 +323,18 @@ platform-specific behaviour.
 
 ### Repository hosts
 
-`git-open` links to the current branch with the path used by the hosting service. The
-host is taken from the remote URL, and the built-in rules cover:
-
-| Host | Branch URL suffix |
-| --- | --- |
-| `github.com` | `/tree/<branch>` |
-| `gitlab.com` | `/-/tree/<branch>` |
-| `bitbucket.org` | `/src/<branch>` |
-| `codeberg.org`, `gitea.com` | `/src/branch/<branch>` |
-| `git.sr.ht` | `/tree/<branch>` |
-| `dev.azure.com`, `*.visualstudio.com` | `?version=GB<branch>` |
-| any hostname with a `gitlab` label | `/-/tree/<branch>` |
-| any hostname with a `gitea` or `forgejo` label | `/src/branch/<branch>` |
-
-Self-hosted instances whose hostname does not hint at the software (including GitHub
-Enterprise and Azure DevOps Server) are not in the table. For those, and to override a
-built-in rule, map the exact hostname (not the whole remote URL) to a **style** in the
-`hosts` section. A style is the branch URL shape used by a hosting service:
-
-| Style | Branch path |
-| --- | --- |
-| `github` | `/tree/{branch}` |
-| `gitlab` | `/-/tree/{branch}` |
-| `bitbucket` | `/src/{branch}` |
-| `gitea` (aliases: `forgejo`, `codeberg`) | `/src/branch/{branch}` |
-| `sourcehut` | `/tree/{branch}` |
-| `azure-devops` | `?version=GB{branch}` |
-| `none` | repository root only |
+Branch links are chosen by the remote's hostname. The recognised hosts and the style
+each one maps to are listed under [Hosts and branch URLs](#hosts-and-branch-urls). To
+support a host that is not recognised — GitHub Enterprise, Azure DevOps Server, or a
+self-hosted instance on a neutral domain such as `git.example.com` — map its exact
+hostname (not the whole remote URL) to a style:
 
 ```yaml
 hosts:
   git.internal.example: gitea
   gitlab.internal.example:
     style: gitlab
-  legacy.example.com: none
+  legacy.example.com: none          # repository root only
 ```
 
 A raw template works too — any value containing `{branch}` is used verbatim — and the
@@ -345,14 +347,17 @@ hosts:
     branch: "/src/branch/{branch}"
 ```
 
-When a host has no rule and no override, `git-open` opens the repository root rather than
-guessing a branch URL that would 404. If most of your instances run the same software,
-set `default_style` once; it applies only to hosts with no built-in rule and no override,
-so the services in the table keep their own path:
+If most of your instances run the same software, set `default_style` once. It applies
+only to hosts with no built-in rule and no override, so the services in the table keep
+their own path:
 
 ```yaml
 default_style: gitea
 ```
+
+A misspelled style is an error rather than being silently ignored: `git open` fails with
+a message listing the known styles. `--version` and `help` still work, so a broken config
+never locks you out of the CLI.
 
 ## Testing
 
