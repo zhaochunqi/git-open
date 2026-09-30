@@ -357,13 +357,13 @@ func Test_rootCmd_VersionFlag(t *testing.T) {
 		{
 			name:       "with -v flag",
 			args:       []string{"-v"},
-			wantOutput: "Version: dev\nGit Commit: none\nBuild Date: unknown\n",
+			wantOutput: "Version: dev\nGit Commit: none\nBuild Date: unknown\nAuthor: ZHAO CHUNQI <zcq.qiqi@gmail.com>\n",
 			wantErr:    false,
 		},
 		{
 			name:       "with --version flag",
 			args:       []string{"--version"},
-			wantOutput: "Version: dev\nGit Commit: none\nBuild Date: unknown\n",
+			wantOutput: "Version: dev\nGit Commit: none\nBuild Date: unknown\nAuthor: ZHAO CHUNQI <zcq.qiqi@gmail.com>\n",
 			wantErr:    false,
 		},
 	}

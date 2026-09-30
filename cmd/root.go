@@ -39,9 +39,7 @@ Pass --plain (-p) to print the URL instead of opening it.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		version, _ := cmd.Flags().GetBool("version")
 		if version {
-			fmt.Fprintf(cmd.OutOrStdout(), "Version: %s\n", Version)
-			fmt.Fprintf(cmd.OutOrStdout(), "Git Commit: %s\n", CommitHash)
-			fmt.Fprintf(cmd.OutOrStdout(), "Build Date: %s\n", BuildDate)
+			printVersionInfo(cmd.OutOrStdout())
 			return nil
 		}
 		// Get the repository, its remote URL, and the converted web URL

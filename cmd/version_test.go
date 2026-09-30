@@ -34,8 +34,8 @@ func Test_versionCmd(t *testing.T) {
 	// Run the version command function
 	versionCmd.Run(cmd, []string{})
 
-	expected := fmt.Sprintf("Version: %s\nGit Commit: %s\nBuild Date: %s\n",
-		Version, CommitHash, BuildDate)
+	expected := fmt.Sprintf("Version: %s\nGit Commit: %s\nBuild Date: %s\nAuthor: %s\n",
+		Version, CommitHash, BuildDate, authorList())
 
 	if got := buf.String(); got != expected {
 		t.Errorf("version command output = %q, want %q", got, expected)
