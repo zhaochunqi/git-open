@@ -1,6 +1,6 @@
 module github.com/zhaochunqi/git-open
 
-go 1.27.1
+go 1.27.2
 
 require (
 	github.com/go-git/go-billy/v5 v5.9.2
