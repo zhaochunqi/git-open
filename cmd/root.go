@@ -81,6 +81,12 @@ var Execute = func() error {
 	// parsing so that "git-open h" resolves.
 	ensureHelpCommand(rootCmd)
 	if err := rootCmd.Execute(); err != nil {
+		// Unknown commands are usage mistakes just like unknown flags, so
+		// they get the same --help hint. Cobra has no typed error or hook
+		// for this case, matching the message prefix is the only option.
+		if strings.HasPrefix(err.Error(), "unknown command") {
+			return fmt.Errorf("%w\nRun '%s --help' for usage.", err, rootCmd.CommandPath())
+		}
 		return err
 	}
 	return nil
@@ -98,6 +104,14 @@ func init() {
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("plain", "p", false, "Just print the web url without opening.")
 	rootCmd.Flags().BoolP("version", "v", false, "Show version information")
+
+	// Usage output is silenced on errors, so flag mistakes (e.g. an unknown
+	// flag) would otherwise fail with a bare error and no hint. Point the
+	// user at --help of the offending command instead. Cobra walks up the
+	// parents when resolving the error func, so this also covers subcommands.
+	rootCmd.SetFlagErrorFunc(func(cmd *cobra.Command, err error) error {
+		return fmt.Errorf("%w\nRun '%s --help' for usage.", err, cmd.CommandPath())
+	})
 }
 
 // initConfig reads the config file and the environment. It returns an error
