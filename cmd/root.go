@@ -20,6 +20,10 @@ var rootCmd = &cobra.Command{
 	Long: `This application retrieves the remote URL of the Git repository in the current working
 directory, converts it to a web URL, and opens it in your default browser.
 Pass --plain (-p) to print the URL instead of opening it.`,
+	// Runtime failures (e.g. no remote configured) should print one error
+	// line, not the full usage; main.go owns printing the error message.
+	SilenceUsage:  true,
+	SilenceErrors: true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// --version and the help command must keep working even when the config
 		// file is invalid, so they bypass config validation.

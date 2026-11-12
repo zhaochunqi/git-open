@@ -386,6 +386,26 @@ func Test_getBranchName_Error(t *testing.T) {
 	}
 }
 
+func Test_getRemoteURL_NoOriginRemote(t *testing.T) {
+	// SetupTestRepo with an empty remote URL creates a repo without any remote.
+	_, cleanup := testhelper.SetupTestRepo(t, "", "main")
+	defer cleanup()
+
+	repo, err := getCurrentGitDirectory()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = getRemoteURL(repo)
+	if err == nil {
+		t.Fatal("Expected error for missing origin remote, got nil")
+	}
+	want := "no 'origin' remote configured in this repository; add one with: git remote add origin <url>"
+	if err.Error() != want {
+		t.Errorf("error = %q, want %q", err.Error(), want)
+	}
+}
+
 func Test_getRemoteURL_EmptyURLs(t *testing.T) {
 	// Save original function
 	originalGetRemoteURLFunc := getRemoteURLFunc

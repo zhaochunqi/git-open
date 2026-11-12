@@ -202,6 +202,9 @@ var getRemoteURLFunc = func(repo *git.Repository) (string, error) {
 	// Get the remote URL of the Git repository
 	remote, err := repo.Remote("origin")
 	if err != nil {
+		if errors.Is(err, git.ErrRemoteNotFound) {
+			return "", fmt.Errorf("no 'origin' remote configured in this repository; add one with: git remote add origin <url>")
+		}
 		return "", err
 	}
 
@@ -227,7 +230,9 @@ func resolveWebURL() (*git.Repository, string, string, error) {
 
 	remoteURL, err := getRemoteURL(repo)
 	if err != nil {
-		return nil, "", "", fmt.Errorf("error getting remote URL: %w", err)
+		// The error already describes what failed; wrapping it with
+		// "error getting remote URL" only adds noise.
+		return nil, "", "", err
 	}
 
 	webURL := convertToWebURL(remoteURL)
