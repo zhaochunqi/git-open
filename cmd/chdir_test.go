@@ -43,6 +43,48 @@ func Test_repoCmd_ChdirFlag(t *testing.T) {
 	}
 }
 
+// Test_Execute_UnknownFlagHint verifies that flag mistakes hint at --help
+// of the offending command instead of dumping the full usage.
+func Test_Execute_UnknownFlagHint(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantSub string
+	}{
+		{
+			name:    "root command flag",
+			args:    []string{"git-open", "--bogus"},
+			wantSub: "unknown flag: --bogus\nRun 'git-open --help' for usage.",
+		},
+		{
+			name:    "subcommand flag",
+			args:    []string{"git-open", "repo", "--bogus"},
+			wantSub: "unknown flag: --bogus\nRun 'git-open repo --help' for usage.",
+		},
+		{
+			name:    "unknown command",
+			args:    []string{"git-open", "bogus"},
+			wantSub: "unknown command \"bogus\" for \"git-open\"\nRun 'git-open --help' for usage.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldArgs := os.Args
+			os.Args = tt.args
+			t.Cleanup(func() { os.Args = oldArgs })
+
+			err := Execute()
+			if err == nil {
+				t.Fatal("Execute() expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tt.wantSub) {
+				t.Errorf("Execute() error = %q, want message containing %q", err.Error(), tt.wantSub)
+			}
+		})
+	}
+}
+
 // Test_repoCmd_ChdirFlag_InvalidPath verifies a non-existent -C path errors out.
 func Test_repoCmd_ChdirFlag_InvalidPath(t *testing.T) {
 	oldArgs := os.Args
